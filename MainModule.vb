@@ -24,13 +24,15 @@ Module MainModule
     Sub RequestProcessor(Parameter As Object)
         Dim MyRW As ReadWrites = Parameter
         ' Process here...
-        Console.Out.Write(MyRW.Reader.ReadToEnd())
+        Dim re As String = MyRW.Reader.ReadToEnd()
+        Console.Out.Write(re)
         Console.Out.WriteLine()
         ' End
         MyRW.Client.Close()
     End Sub
 
     Sub Main()
+
         listener = New TcpListener(local, 80)
         listener.Start()
         Do
@@ -41,8 +43,8 @@ Module MainModule
             Dim thr As Thread = New Thread(New ParameterizedThreadStart(AddressOf RequestProcessor))
             current = listener.AcceptTcpClient()
             stream = current.GetStream()
-            sread = New StreamReader(Stream)
-            swrite = New StreamWriter(Stream)
+            sread = New StreamReader(stream)
+            swrite = New StreamWriter(stream)
             thr.Start(New ReadWrites(sread, swrite, current))
         Loop
     End Sub
