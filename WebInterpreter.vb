@@ -10,11 +10,11 @@ Module WebInterpreter
     End Class
 
     Public Class WebInfo
-        Public ReadOnly Property Method As String
-        Public ReadOnly Property Path As String
-        Public ReadOnly Property HTTPVersion As String
-        Public ReadOnly Property Settings As Dictionary(Of String, String)
-        Public ReadOnly Property Content As String
+        Public Property Method As String = ""
+        Public Property Path As String = ""
+        Public Property HTTPVersion As String = ""
+        Public Property Settings As Dictionary(Of String, String) = New Dictionary(Of String, String)
+        Public Property Content As String = ""
 
         Public ReadOnly Property MyBoundary As String
             Get
@@ -40,9 +40,14 @@ Module WebInterpreter
                     Me.Settings = Settings
                     Me.Content = Content
                 End Sub
+
+                Public Sub SaveTo(Stream As IO.BinaryWriter)
+                    Stream.Write(Me.Content)
+                End Sub
+
             End Structure
 
-            Public ReadOnly Property Data As List(Of SingleData)
+            Public Property Data As List(Of SingleData)
 
         End Structure
 
@@ -51,6 +56,7 @@ Module WebInterpreter
                 ' 1. Get post data from requested data
                 Dim bd As String = Me.MyBoundary
                 Dim temp As PostInfo = New PostInfo
+                temp.Data = New List(Of PostInfo.SingleData)
                 Dim spl As String() = Split(Me.Content, vbLf)
                 Dim current As PostInfo.SingleData = Nothing
                 Dim content As Boolean = False
@@ -86,6 +92,9 @@ Module WebInterpreter
 
         ' Only for GET method now.
         Public Sub New(RequestData As String)
+            If Trim(RequestData).Length <= 0 Then
+                Exit Sub
+            End If
             Dim i As Integer
             Dim spl As String() = Split(RequestData, vbLf)
             Dim firstline As String = spl(0).Replace(vbCr, "")
@@ -118,8 +127,30 @@ Module WebInterpreter
                     Continue For
                 End If
                 argspl(1) = Trim(argspl(1))
-                Me.Settings(argspl(0)) = argspl(1)
+                Me.Settings(argspl(0)) = argspl(1)  '....!
             Next
+        End Sub
+
+        Public Sub New(RequestStream As IO.StreamReader)
+            Me.New(RequestStream.ReadToEnd())
+        End Sub
+
+        Public Sub DebugOutput()
+            Console.Out.Write("Method: " & Me.Method)
+            Console.Out.WriteLine()
+            Console.Out.Write("Path: " & Me.Path)
+            Console.Out.WriteLine()
+            Console.Out.Write("HTTP Version: " & Me.HTTPVersion)
+            Console.Out.WriteLine()
+            Console.Out.Write("Parameters:")
+            Console.Out.WriteLine()
+            For Each i In Me.Settings
+                Console.Out.Write(i.Key & " = " & i.Value)
+                Console.Out.WriteLine()
+            Next
+            Console.Out.Write("Content:")
+            Console.Out.WriteLine()
+            Console.Out.Write(Me.Content)
         End Sub
     End Class
 End Module

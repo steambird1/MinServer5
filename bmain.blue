@@ -1,0 +1,222 @@
+class exception:
+	init:
+		# Do nothing, reserved class
+
+class list:
+	init:
+		set this.length=0
+	function append data:
+		set this:this.length=data
+		set this.length=this.length+1
+	function remove pos:
+		for i=pos~this.length-1:
+			set this:i=this:(i+1)
+		set this.length=this.length-1
+	function insert pos data:
+		for i=this.length~pos~-1:
+			set this:i=this:(i-1)
+		set this.length=this.length+1
+		set this:pos=data
+
+class _basic_file:
+	init:
+		set this.handle=null
+		set this.filename=null
+		set this.operate=null
+		set this.valid=0
+	function isvalid:
+		if this.valid=0:
+			return 0
+		file valid res=this.handle
+		return res
+	function open fn op:
+		set this.filename=fn
+		set this.operate=op
+		file open this.handle=fn,op
+		set this.valid=1
+		set this.valid=this.isvalid
+		return this.valid
+	function close:
+		file close this.handle
+		set this.valid=0
+		set this.filename=null
+		set this.operate=null
+
+class reader:
+	inherits _basic_file
+	function open fn writeable:
+		set myop="r"
+		if writeable:
+			set myop="r+"
+		run this._basic_file@open fn,myop
+	function read:
+		file read tmp=this.handle
+		return tmp
+	function read_to_end:
+		set v=1
+		set tmp=""
+		while v:
+			file read ln=this.handle
+			set tmp=tmp+ln+LF
+			file valid v=this.handle
+		return tmp
+
+class writer:
+	inherits _basic_file
+	function open fn override readable:
+		set myop=""
+		if override:
+			set myop="w"
+		else:
+			set myop="a"
+		if readable:
+			set myop=myop+"+"
+		run this._basic_file@open fn,myop
+	function write data:
+		file write this.handle,data
+
+class binary_reader:
+	inherits reader
+	function open fn:
+		run this._basic_file@open fn,"rb"
+	function read_binary_to_end:
+		debugger
+		file binary_read tmp=this.handle
+		return tmp
+
+class binary_writer:
+	inherits writer
+	function open fn override:
+		set myop=""
+		if override:
+			set myop="w"
+		else:
+			set myop="a"
+		set myop=myop+"b"
+		run this._basic_file@open fn,myop
+	function write_binary blist:
+		set bobj=object blist
+		file binary_write this.handle,bobj
+
+function random:
+	set tmp=__random
+	return tmp
+
+function random_ranged min_r max_r:
+	return random%(max_r-min_r)+min_r;
+
+class reference:
+	shared class
+	shared refdata
+	function put obj:
+		set r=random
+		while not isnull reference.refdata:r:
+			set r=random
+		set reference.refdata:r=obj
+		return r
+	function get point:
+		return reference.refdata:point
+	function sets point obj:
+		set reference.refdata:point=obj
+	function valid point:
+		return not isnull refrence.reference.refdata:point
+
+function typeof obj:
+	set o=object obj
+	set temp=__typeof o
+	return temp
+
+function inheritanceof first second:
+	set fo=object first
+	set so=object second
+	set temp=__inheritanceof fo,so
+	return temp
+
+function isnull obj:
+	if obj=null:
+		return 1
+	else:
+		return 0
+
+function len obj:
+	set temp=__len obj
+	return temp
+
+function not obj:
+	if (boolean obj)=0:
+		return 1
+	else:
+		return 0
+
+function boolean obj:
+	if isnull obj:
+		return 0
+	if obj=0:
+		return 0
+	if len obj=0:
+		return 0
+	return 1
+
+function int_input:
+	set temp=__input_int
+	return temp
+
+function input:
+	set temp=__input
+	return temp
+
+function atof string:
+	set temp=__int string
+	return temp
+
+function atoi string:
+	return floor (atof string)
+
+function ord char:
+	set temp=__ord char
+	return temp
+
+function chr ascii:
+	set temp=__chr ascii
+	return temp
+
+function floor num:
+	set temp=__intg num
+	return temp
+
+function ceil num:
+	set temp=__intg num+0.5
+	return temp
+
+function time:
+	set temp=__time
+	return temp
+
+function clock:
+	set temp=__clock
+	return temp
+
+function str num:
+	return ""+num
+
+function substr origin begin length:
+	set newstr=""
+	for i=begin~begin+length:
+		set newstr=newstr+origin#i
+	return newstr
+
+function split origin delimit maxsplit:
+	set res=new list
+	set tmp=""
+	for i=0~len origin:
+		if res.length=maxsplit:
+			break
+		if origin#i=delimit:
+			run res.append tmp
+			set tmp=""
+		else:
+			set tmp=tmp+origin#i
+	if (len tmp)>0:
+		run res.append tmp
+	set s=serial res
+	return s
