@@ -2,6 +2,7 @@
 Imports System.Threading
 Imports System.IO
 Imports System.Net
+Imports System.Text
 
 Module MainModule
 
@@ -36,6 +37,20 @@ Module MainModule
     Private ReadOnly Property FileToCheck As List(Of String) = New List(Of String)({"WebHeader.blue", "BlueBetter4.exe", "bmain.blue"})
     Private ReadOnly Property BlueESS As List(Of String) = FileToCheck
 
+    Public Function SetQuotes(data As String) As String
+        Dim s As StringBuilder = New StringBuilder(data)
+        s.Replace(vbCr, "")
+        s.Replace(vbLf, "\n")
+        s.Replace("""", "\""")
+        ' & """"
+        s.Insert(0, """")
+        s.Append("""")
+        Return s.ToString()
+    End Function
+
+    ' Note: data is fixed !!!
+    Public ReadOnly Property InternalServerError As String = "HTTP/1.1 500 Internal Server Error" & vbCrLf & "Connection: Close" & vbCrLf & "Content-Type: text/html" & vbCrLf & "Content-Length: 211" & vbCrLf & vbCrLf & "<html><head><title>500 - Internal Server Error</title></head><body><h1>500 Internal Server Error</h1><br /><p>The BlueBetter Program didn't provide any content to send.</p><hr /><p>MinServer 5</p></body></html>"
+
     Sub RequestProcessor(Parameter As Object)
         Dim MyRW As ReadWrites = Parameter
         ' Process here...
@@ -47,19 +62,21 @@ Module MainModule
             FileCopy(pather & "\" & i, DirectoryToBluebetter)
         Next
         ' Requires ANSI for BlueBetter 4
-        Dim ActiveScript As StreamWriter = My.Computer.FileSystem.OpenTextFileWriter(DirectoryToBluebetter & "\execute.blue", False, Text.Encoding.Default)
+        Dim ActiveExecuter As String = DirectoryToBluebetter & "\execute.blue"
+        Dim ActiveScript As StreamWriter = My.Computer.FileSystem.OpenTextFileWriter(ActiveExecuter, False, Text.Encoding.Default)
         Dim MyHeader As StreamReader = My.Computer.FileSystem.OpenTextFileReader(pather & "\WebHeader.blue")
+        Dim MyScript As String = pather & "\" & MyWebInfo.Path
         ActiveScript.Write(MyHeader.ReadToEnd())
         MyHeader.Close()
         ActiveScript.WriteLine()
-        ActiveScript.Write("set receiver.path=" & MyWebInfo.Path)
+        ActiveScript.Write("set receiver.path=" & SetQuotes(MyWebInfo.Path))
         ActiveScript.WriteLine()
-        ActiveScript.Write("set receiver.http_version=" & MyWebInfo.HTTPVersion)
+        ActiveScript.Write("set receiver.http_version=" & SetQuotes(MyWebInfo.HTTPVersion))
         ActiveScript.WriteLine()
-        ActiveScript.Write("set receiver.method=" & MyWebInfo.Method)
+        ActiveScript.Write("set receiver.method=" & SetQuotes(MyWebInfo.Method))
         ActiveScript.WriteLine()
         For Each i In MyWebInfo.Settings
-            ActiveScript.Write("set receiver.attributes." & i.Key & "=" & i.Value)
+            ActiveScript.Write("set receiver.attributes#" & SetQuotes(i.Key) & "=" & SetQuotes(i.Value))
             ActiveScript.WriteLine()
         Next
         ' Get content data...
@@ -75,19 +92,35 @@ Module MainModule
             Dim CurrentStream As BinaryWriter = New BinaryWriter(File.Open(CurrentFilename, FileMode.Create))
             i.SaveTo(CurrentStream)
             CurrentStream.Close()
-            ActiveScript.Write("set " & TempName & ".myfile=" & CurrentFilename)
+            ActiveScript.Write("set " & TempName & ".myfile=" & SetQuotes(CurrentFilename))
             ActiveScript.WriteLine()
             For Each j In i.Settings
-                ActiveScript.Write("set " & TempName & ".attributes." & j.Key & "=" & j.Value)
+                ActiveScript.Write("set " & TempName & ".attributes#" & SetQuotes(j.Key) & "=" & SetQuotes(j.Value))
                 ActiveScript.WriteLine()
             Next
             DataCounter += 1
         Next
         Dim MySender As String = GenerateRandom(DirectoryToBluebetter)
+        ActiveScript.Write("run sender._setfiles " & SetQuotes(MySender))
+        ActiveScript.WriteLine()
+        ActiveScript.WriteLine()
+        ' Read file to run
+        Dim MyCodeContent As StreamReader = My.Computer.FileSystem.OpenTextFileReader(MyScript)
+        ActiveScript.Write(MyCodeContent.ReadToEnd())
+        MyCodeContent.Close()
+        ActiveScript.Close()
+        ' Execute!
+        Shell(ActiveExecuter, AppWinStyle.Hide, True)
+        ' Write response
+        Try
+            Dim MySenderStream As BinaryReader = New BinaryReader(File.Open(MySender, FileMode.Open))
 
-        ' ... Load for sender ...
-
-        Shell(DirectoryToBluebetter & MyWebInfo.Path, AppWinStyle.Hide, True)
+        Catch ex As FileNotFoundException
+            Console.Out.Write("The program doesn't return anything to return!")
+            Console.Out.WriteLine()
+            MyRW.Writer.Write(InternalServerError)
+            MyRW.Writer.WriteLine()
+        End Try
         ' End
         MyRW.Client.Close()
     End Sub
