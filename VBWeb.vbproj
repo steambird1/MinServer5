@@ -106,6 +106,7 @@
       <LastGenOutput>Settings.Designer.vb</LastGenOutput>
     </None>
     <None Include="App.config" />
+    <None Include="test.blue" />
     <None Include="WebHeader.blue" />
   </ItemGroup>
   <ItemGroup>
