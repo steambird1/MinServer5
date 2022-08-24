@@ -85,8 +85,7 @@ Module MainModule
             RequestProcessor(New ReadWrites(sread, swrite, current))
             stream.Close()
         Catch ex As IO.IOException
-            Console.Out.Write("Server abort!")
-            Console.Out.WriteLine()
+            ShowError("Connection reset by server: " & ex.Message)
         End Try
     End Sub
 
@@ -127,7 +126,7 @@ Module MainModule
             End If
         Next
         If Not My.Computer.FileSystem.FileExists(MyScript) Then
-            Console.Out.Write("404: " & MyScript)
+            ShowWarning("404: " & MyScript)
             MySenderData = New WebString(NotFoundError)
             GoTo BeginWriting
         End If
@@ -137,8 +136,6 @@ Module MainModule
         If MyExtension = interpreter Then
             ' ... Execute BlueBetter ...
             Dim DirectoryToBluebetter As String = GenerateRandom(t_add)
-            Console.Out.Write("Directory: " & DirectoryToBluebetter)
-            Console.Out.WriteLine()
             My.Computer.FileSystem.CreateDirectory(DirectoryToBluebetter)
             For Each i In BlueESS
                 FileCopy(pather & "\" & i, DirectoryToBluebetter & "\" & i)
@@ -194,26 +191,26 @@ Module MainModule
             Try
                 MyCodeContent = My.Computer.FileSystem.OpenTextFileReader(MyScript)
             Catch ex As FileNotFoundException
-                Console.Out.Write("404: " & MyScript)
+                ShowWarning("404: " & MyScript)
                 MySenderData = NotFoundError
                 GoTo BeginWriting
             End Try
             ActiveScript.Write(MyCodeContent.ReadToEnd())
             MyCodeContent.Close()
             ActiveScript.Close()
-            Console.Out.Write("End of script loader ...")
-            Console.Out.WriteLine()
             ' Execute!
             Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter, AppWinStyle.Hide, True)
             ' Write response
 NoExecuted:
             Try
-                Dim MySenderStream As StreamReader = My.Computer.FileSystem.OpenTextFileReader(MySender, [Default])
-                MySenderData.Append(MySenderStream.ReadToEnd())
+                Dim MySenderStream As BinaryReader = New BinaryReader(File.Open(MySender, FileMode.Open))
+                If MySenderStream.BaseStream.Length = 0 Then
+                    Throw New FileNotFoundException
+                End If
+                MySenderData.Append(MySenderStream.ReadBytes(MySenderStream.BaseStream.Length))
                 MySenderStream.Close()
             Catch ex As FileNotFoundException
-                Console.Out.Write("500: The program doesn't return anything to return!")
-                Console.Out.WriteLine()
+                ShowWarning("500: The program doesn't return anything to return!")
                 MyRW.Writer.Write(InternalServerError)
                 MyRW.Writer.Write(vbLf)
                 ExceptionOccured = True
@@ -229,8 +226,6 @@ NoExecuted:
             Dim WLength As Long = WholeReader.BaseStream.Length
             'Dim WholeData As Char() = WholeReader.ReadChars(WLength)
             Dim WholeData As Byte() = WholeReader.ReadBytes(WLength)
-            Console.Out.Write("Length of normal stream: " & WLength)
-            Console.Out.WriteLine()
             MySenderData.Append("HTTP/1.1 200 OK")
             MySenderData.AppendLine()
             MySenderData.Append("Content-Type: " & DocKind)
@@ -254,8 +249,6 @@ BeginWriting: If Not ExceptionOccured Then
         MyRW.Reader.Close()
         MyRW.Writer.Close()
 FinishWriting: MyRW.Client.Close()
-        Console.Out.Write("End of sender ...")
-        Console.Out.WriteLine()
     End Sub
 
 
@@ -264,16 +257,16 @@ FinishWriting: MyRW.Client.Close()
 
         For Each i In FileToCheck
             If Not My.Computer.FileSystem.FileExists(pather & "\" & i) Then
-                Console.Out.Write("File not found: " & i)
+                ShowError("File not found: " & i)
                 Console.Out.WriteLine()
-                Console.Out.Write("Server cannot continue. Halted! . . .")
+                ShowError("Server cannot continue. Halted! . . .")
                 Do
                     Thread.Yield()
                 Loop
             End If
         Next
 
-        Console.Out.Write("* Server started *")
+        ShowStatus("* Server started *")
         Console.Out.WriteLine()
 
         listener = New TcpListener(local, 80)
@@ -291,11 +284,7 @@ FinishWriting: MyRW.Client.Close()
             Dim currentAsync As IAsyncResult = listener.BeginAcceptTcpClient(New AsyncCallback(AddressOf AsyncRequestProcessor), listener)
             ' Wait ...
             Do Until isbusy
-                If Not output Then
-                    Console.Out.Write("Waiting ...")
-                    Console.Out.WriteLine()
-                    output = True
-                End If
+                Thread.Yield()
             Loop
             isbusy = False
             output = False

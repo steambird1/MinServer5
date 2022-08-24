@@ -4,6 +4,27 @@ Imports System.Text
 
 Module WebInterpreter
 
+    Public Sub ShowError(Info As String)
+        Console.ForegroundColor = ConsoleColor.Red
+        Console.Out.Write(Info)
+        Console.Out.WriteLine()
+        Console.ForegroundColor = ConsoleColor.White
+    End Sub
+
+    Public Sub ShowWarning(Info As String)
+        Console.ForegroundColor = ConsoleColor.Yellow
+        Console.Out.Write(Info)
+        Console.Out.WriteLine()
+        Console.ForegroundColor = ConsoleColor.White
+    End Sub
+
+    Public Sub ShowStatus(Info As String)
+        Console.ForegroundColor = ConsoleColor.Cyan
+        Console.Out.Write(Info)
+        Console.Out.WriteLine()
+        Console.ForegroundColor = ConsoleColor.White
+    End Sub
+
     Public Class BadWebFormatException
         Inherits Exception
         Public Overrides ReadOnly Property Message As String = "Incorrect Web Request Format!"
@@ -272,8 +293,6 @@ Module WebInterpreter
                 argspl(1) = Trim(argspl(1))
                 Me.Settings(argspl(0)) = argspl(1)
             Next
-            Console.Out.Write("End of analyze...")
-            Console.Out.WriteLine()
         End Sub
 
         Public Sub New(RequestData As String)
@@ -284,10 +303,6 @@ Module WebInterpreter
 
         ' To test if POST.
         Public Sub New(RequestStream As IO.BinaryReader)
-            ' Test
-            Console.Out.Write("WebInfo.New (IO.StreamReader)")
-            Console.Out.WriteLine()
-            ' End
             Try
                 Dim tmp As WebString = New WebString
                 Dim myLength As Long = 0
@@ -325,12 +340,12 @@ Module WebInterpreter
                 Loop
                 GenerateFrom(tmp)
             Catch ex As IO.IOException
-                Console.Out.Write("Timeout!")
-                Console.Out.WriteLine()
+                ShowError("Timeout! " & ex.Message)
             End Try
         End Sub
 
         Public Sub DebugOutput()
+            Console.ForegroundColor = ConsoleColor.Magenta
             Console.Out.Write("Method: " & Me.Method)
             Console.Out.WriteLine()
             Console.Out.Write("Path: " & Me.Path)
@@ -346,6 +361,7 @@ Module WebInterpreter
             Console.Out.Write("Content:")
             Console.Out.WriteLine()
             Console.Out.Write(Me.Content)
+            Console.ForegroundColor = ConsoleColor.White
         End Sub
     End Class
 End Module
