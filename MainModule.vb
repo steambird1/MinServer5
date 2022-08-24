@@ -203,7 +203,7 @@ Module MainModule
             MyCodeContent.Close()
             ActiveScript.Close()
             ' Execute!
-            Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter, AppWinStyle.Hide, True)
+            Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter & "", AppWinStyle.Hide, True)
             ' Write response
 NoExecuted:
             Try
@@ -226,8 +226,6 @@ NoExecuted:
             Next
         Else
             ' Send the whole file
-            'Dim WholeReader As StreamReader = New StreamReader(File.OpenRead(MyScript))
-            'Dim WRead As String = WholeReader.ReadToEnd()
             ' To modify encoding and apply to everywhere!
             Dim WholeReader As BinaryReader = New BinaryReader(File.Open(MyScript, FileMode.Open))
             Dim WLength As Long = WholeReader.BaseStream.Length

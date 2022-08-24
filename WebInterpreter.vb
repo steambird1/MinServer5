@@ -143,6 +143,18 @@ Module WebInterpreter
             Throw New NoByteStringException("Please use ToStringWithEncoding() instead !")
         End Function
 
+        ' -1 If not found. as same as String.IndexOf
+
+
+        Default Public Property ByteDataFromIndex(Index As Integer) As Byte
+            Get
+                Return Me._byteData(Index)
+            End Get
+            Set(ByVal value As Byte)
+                Me._byteData(Index) = value
+            End Set
+        End Property
+
     End Class
 
     Public Function ReadBinaryLine(ByRef Reader As IO.BinaryReader) As WebString
@@ -241,33 +253,54 @@ Module WebInterpreter
                 Dim bd As String = Me.MyBoundary
                 Dim temp As PostInfo = New PostInfo
                 temp.Data = New List(Of PostInfo.SingleData)
-                Dim spl As String() = Split(Me.Content.ToStringWithEncoding(), vbLf)
+                'Dim spl As String() = Split(Me.Content.ToStringWithEncoding(), vbLf)
+                Dim spl As List(Of WebString) = New List(Of WebString)
+                Dim cur As WebString = New WebString
+                Dim delimitor As Byte = AscW(vbLf)
+                For i = 0 To Me.Content.Length - 1
+                    Dim nowone As Byte = Me.Content.ByteData(i)
+                    If nowone = delimitor Then
+                        spl.Add(cur)
+                        cur = New WebString
+                    Else
+                        cur.Append({nowone})
+                    End If
+                Next
+                If cur.Length > 0 Then
+                    spl.Add(cur)
+                End If
                 Dim current As PostInfo.SingleData = New PostInfo.SingleData
                 Dim content As Boolean = False
                 Dim mycontent As New WebString
                 For Each i In spl
-                    If i.IndexOf(bd) > 0 Then
+                    If i.ToStringWithEncoding().IndexOf(bd) >= 0 Then
                         'If Not IsNothing(current) Then
                         current.Content = mycontent
                         temp.Data.Add(current)
                         mycontent = New WebString
                         'End If
-                        If i(i.Length - 1) = "-" Then
+                        If i(i.Length - 1) = AscW("-"c) Then
                             Exit For
                         End If
                         current = New PostInfo.SingleData
                         current.Settings = New Dictionary(Of String, String)
                         current.Content = New WebString
                         content = False
-                    ElseIf STrim(i) = "" Then
+                    ElseIf STrim(i.ToStringWithEncoding()) = "" Then
                         content = True
+                        If i.Length > 0 Then
+                            If content Then
+                                mycontent.Append(i)
+                                mycontent.Append(vbLf)
+                            End If
+                        End If
                     Else
                         If Not IsNothing(current) Then
                             If content Then
                                 mycontent.Append(i)
                                 mycontent.Append(vbLf)
                             Else
-                                Dim args As String() = Split(i, ":", 2)
+                                Dim args As String() = Split(i.ToStringWithEncoding(), ":", 2)
                                 current.Settings(args(0)) = trim(args(1))
                             End If
                         End If
