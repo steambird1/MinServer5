@@ -235,9 +235,9 @@ NoExecuted:
             MySenderData.AppendLine()
             MySenderData.Append(WholeData)
             ' Promisor
-            Dim Promisor As BinaryWriter = New BinaryWriter(File.Open(pather & "\Promise.bin", FileMode.Create), Encoding.Default)
-            Promisor.Write(MySenderData.ByteData)
-            Promisor.Close()
+            'Dim Promisor As BinaryWriter = New BinaryWriter(File.Open(pather & "\Promise.bin", FileMode.Create), Encoding.Default)
+            'Promisor.Write(MySenderData.ByteData)
+            'Promisor.Close()
             ' End of promisor test
             WholeReader.Close()
         End If
