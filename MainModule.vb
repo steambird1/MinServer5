@@ -179,6 +179,8 @@ Module MainModule
                     ActiveScript.Write("set " & TempName & ".attributes#" & SetQuotes(j.Key) & "=" & SetQuotes(j.Value))
                     ActiveScript.WriteLine()
                 Next
+                ActiveScript.Write("run receiver.content.append " & TempName)
+                ActiveScript.WriteLine()
                 DataCounter += 1
             Next
             Dim MySender As String = GenerateRandom(DirectoryToBluebetter)
@@ -202,7 +204,7 @@ Module MainModule
             Console.Out.Write("End of script loader ...")
             Console.Out.WriteLine()
             ' Execute!
-            Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter & "", AppWinStyle.Hide, True)
+            Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter, AppWinStyle.Hide, True)
             ' Write response
 NoExecuted:
             Try

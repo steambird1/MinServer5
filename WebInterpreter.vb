@@ -134,6 +134,17 @@ Module WebInterpreter
         Return ws
     End Function
 
+    Public Function STrim(ByVal Str As String) As String
+        Dim t As StringBuilder = New StringBuilder(Trim(Str))
+        While t.Length > 0 AndAlso (t(0) = vbCr Or t(0) = vbLf)
+            t = t.Remove(0, 1)
+        End While
+        While t.Length > 0 AndAlso (t(t.Length - 1) = vbCr Or t(t.Length - 1) = vbLf)
+            t = t.Remove(t.Length - 1, 1)
+        End While
+        Return t.ToString()
+    End Function
+
     Public Class WebInfo
         Public Property Method As String = ""
         Public Property Path As String = ""
@@ -147,11 +158,16 @@ Module WebInterpreter
                     Return ""
                 End If
                 Dim spl As String() = Split(Settings("Content-Type"), ";")
-                ' Is like [normal]; [altn]
+                ' Is like [normal]; boundary=[altn]
                 If spl.Count() < 2 Then
                     Return ""
                 End If
-                Return Trim(spl(1))
+                Try
+                    spl(1) = Split(spl(1), "=", 2)(1)
+                    Return Trim(spl(1))
+                Catch ex As IndexOutOfRangeException
+                    Return ""
+                End Try
             End Get
         End Property
 
@@ -184,21 +200,24 @@ Module WebInterpreter
                 Dim temp As PostInfo = New PostInfo
                 temp.Data = New List(Of PostInfo.SingleData)
                 Dim spl As String() = Split(Me.Content.ToStringWithEncoding(), vbLf)
-                Dim current As PostInfo.SingleData = Nothing
+                Dim current As PostInfo.SingleData = New PostInfo.SingleData
                 Dim content As Boolean = False
                 Dim mycontent As New WebString
                 For Each i In spl
                     If i.IndexOf(bd) > 0 Then
-                        If Not IsNothing(current) Then
-                            current.Content = mycontent.ToString()
-                            mycontent = New WebString
-                        End If
+                        'If Not IsNothing(current) Then
+                        current.Content = mycontent
+                        temp.Data.Add(current)
+                        mycontent = New WebString
+                        'End If
                         If i(i.Length - 1) = "-" Then
                             Exit For
                         End If
                         current = New PostInfo.SingleData
+                        current.Settings = New Dictionary(Of String, String)
+                        current.Content = New WebString
                         content = False
-                    ElseIf Trim(i) = "" Then
+                    ElseIf STrim(i) = "" Then
                         content = True
                     Else
                         If Not IsNothing(current) Then
@@ -212,12 +231,14 @@ Module WebInterpreter
                         End If
                     End If
                 Next
+                If temp.Data.Count > 0 Then
+                    temp.Data.RemoveAt(0)
+                End If
                 Return temp
             End Get
         End Property
 
-        ' Only for GET method now.
-
+        ' Will not read content !
         Protected Sub GenerateFrom(RequestData As WebString)
             If Trim(RequestData.ToStringWithEncoding()).Length <= 0 Then
                 Exit Sub
@@ -235,19 +256,14 @@ Module WebInterpreter
             Me.HTTPVersion = farg(2)
             Dim content As Boolean = False
             For i = 1 To spl.Count - 1
-                If content And (Not IsNothing(mycontent)) Then
-                    mycontent.Append(spl(i))
-                    mycontent.Append(vbLf)
-                End If
                 Dim myline As String = Trim(spl(i).Replace(vbCr, ""))
-                If myline.Length < 0 Then
+                ' Remove CR, LF
+                While myline.Length > 0 AndAlso (myline(0) = vbCr Or myline(0) = vbLf)
+                    myline = myline.Remove(0, 1)
+                End While
+                If myline.Length <= 0 Then
                     ' Main content begin!
-                    content = True
-                    Dim slen As Integer = 1
-                    If Me.Settings.ContainsKey("Content-Length") Then
-                        slen = Val(Me.Settings("Content-Length"))
-                    End If
-                    mycontent = New WebString(slen)
+                    Exit For
                 End If
                 Dim argspl As String() = Split(myline, ":", 2)
                 If argspl.Count() < 2 Then
@@ -276,11 +292,9 @@ Module WebInterpreter
                 Dim tmp As WebString = New WebString
                 Dim myLength As Long = 0
                 ' Read first line for 'tmp'.
-                Dim CurrentData As Byte()
                 Do
                     Try
                         Dim CurrentLine As String = ReadBinaryLine(RequestStream).ToStringWithEncoding()
-                        Console.Out.Write(CurrentLine) '  Console.Out.WriteLine()
                         tmp.Append(CurrentLine)
                         Dim LastChar, FirstChar As Char
                         If CurrentLine.Length > 0 Then
@@ -295,9 +309,7 @@ Module WebInterpreter
                             ' An empty line!
                             ' Content must be began
                             If myLength > 0 Then
-                                ReDim CurrentData(myLength + 1)
-                                CurrentData = RequestStream.ReadBytes(myLength)
-                                tmp.Append(CurrentData)
+                                Me.Content = New WebString(RequestStream.ReadBytes(myLength))
                             End If
                             Exit Do
                         Else
