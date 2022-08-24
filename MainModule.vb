@@ -161,13 +161,17 @@ Module MainModule
             Dim MyContent As WebInfo.PostInfo = MyWebInfo.PostData
             Dim MyData = MyContent.Data
             Dim DataCounter As Integer = 0
+            Dim Attachments As List(Of String) = New List(Of String)
             For Each i In MyData
                 Dim TempName As String = "__postdata_" & DataCounter
                 ActiveScript.Write("set " & TempName & "=new post_data")
                 ActiveScript.WriteLine()
+                ActiveScript.Write("set " & TempName & ".name=" & SetQuotes(i.FieldName))
+                ActiveScript.WriteLine()
                 ' Get file for it
                 Dim CurrentFilename As String = GenerateRandom(DirectoryToBluebetter)
                 Dim CurrentStream As BinaryWriter = New BinaryWriter(File.Open(CurrentFilename, FileMode.Create), Encoding.Default)
+                Attachments.Add(CurrentFilename)
                 i.SaveTo(CurrentStream)
                 CurrentStream.Close()
                 ActiveScript.Write("set " & TempName & ".myfile=" & SetQuotes(CurrentFilename))
@@ -217,6 +221,9 @@ NoExecuted:
             End Try
             My.Computer.FileSystem.DeleteDirectory(DirectoryToBluebetter, FileIO.DeleteDirectoryOption.DeleteAllContents)
             My.Computer.FileSystem.DeleteFile(MySender)
+            For Each i In Attachments
+                My.Computer.FileSystem.DeleteFile(i)
+            Next
         Else
             ' Send the whole file
             'Dim WholeReader As StreamReader = New StreamReader(File.OpenRead(MyScript))
@@ -266,14 +273,22 @@ FinishWriting: MyRW.Client.Close()
             End If
         Next
 
-        ShowStatus("* Server started *")
+
         Console.Out.WriteLine()
 
         listener = New TcpListener(local, 80)
-        listener.Start()
+        Try
+            listener.Start()
+        Catch ex As SocketException
+            ShowError("Server cannot listen. Halted! . . .")
+            Do
+                Thread.Yield()
+            Loop
+        End Try
         Dim currentBus As Integer = 0
         Dim output As Boolean = False
         isbusy = False
+        ShowStatus("* Server started *")
         Do
             'Dim stream As NetworkStream
             'Dim sread As StreamReader

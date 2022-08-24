@@ -195,8 +195,29 @@ Module WebInterpreter
         Public Structure PostInfo
 
             Public Structure SingleData
+
                 Public Property Settings As Dictionary(Of String, String)
                 Public Property Content As WebString
+
+                Public ReadOnly Property FieldName As String
+                    Get
+                        If Not Me.Settings.ContainsKey("Content-Disposition") Then
+                            Return ""
+                        End If
+                        Dim cd As String = Me.Settings("Content-Disposition")
+                        Dim spl As String() = Split(cd, ";")
+                        ' Is like [normal]; name=[name]
+                        If spl.Count() < 2 Then
+                            Return ""
+                        End If
+                        Try
+                            spl(1) = Split(spl(1), "=", 2)(1)
+                            Return Trim(spl(1))
+                        Catch ex As IndexOutOfRangeException
+                            Return ""
+                        End Try
+                    End Get
+                End Property
 
                 Public Sub New(Settings As Dictionary(Of String, String), Content As WebString)
                     Me.Settings = Settings

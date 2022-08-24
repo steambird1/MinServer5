@@ -13,6 +13,7 @@ class post_data:
 	init:
 		set this.myfile=null
 		set this.attributes=null
+		set this.name=null
 	function open:
 		if this.myfile=null:
 			return null
