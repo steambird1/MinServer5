@@ -31,7 +31,8 @@ class sender:
 	function write data:
 		run sender.stream.write data
 	function writebin binary:
-		run sender.stream.write_binary binary
+		set binary_o=object binary
+		run sender.stream.write_binary binary_o
 	function write_header server_version response_code response_text:
 		if not boolean sender.contentin:
 			run sender.write (server_version+" "+response_code+" "+response_text+LF)
