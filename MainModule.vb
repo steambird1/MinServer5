@@ -21,6 +21,8 @@ Module MainModule
         contents.Add(".blue", "text/html")
         contents.Add(".txt", "text/plain")
         contents.Add(".jpg", "image/jpeg")
+        contents.Add(".png", "image/png")
+        contents.Add(".htm", "text/html")
     End Sub
 
     Private Sub Initalize()
@@ -67,13 +69,16 @@ Module MainModule
     End Function
 
     ' Note: data is fixed !!!
-    Public ReadOnly Property InternalServerError As String = "HTTP/1.1 500 Internal Server Error" & vbCrLf & "Connection: Close" & vbCrLf & "Content-Type: text/html" & vbCrLf & "Content-Length: 211" & vbCrLf & vbCrLf & "<html><head><title>500 - Internal Server Error</title></head><body><h1>500 Internal Server Error</h1><br /><p>The BlueBetter Program didn't provide any content to send.</p><hr /><p>MinServer 5</p></body></html>"
-    Public ReadOnly Property NotFoundError As String = "HTTP/1.1 404 Not Found" & vbCrLf & "Connection: Close" & vbCrLf & "Content-Type: text/html" & vbCrLf & "Content-Length: 159" & vbCrLf & vbCrLf & "<html><head><title>404 - Not Found</title></head><body><h1>404 Not Found</h1><br /><p>Specified path does not exist.</p><hr /><p>MinServer 5</p></body></html>"
+    Public ReadOnly Property InternalServerError As String = "HTTP/1.1 500 Internal Server Error" & vbCrLf & "Connection: Keep-Alive" & vbCrLf & "Content-Type: text/html" & vbCrLf & "Content-Length: 211" & vbCrLf & vbCrLf & "<html><head><title>500 - Internal Server Error</title></head><body><h1>500 Internal Server Error</h1><br /><p>The BlueBetter Program didn't provide any content to send.</p><hr /><p>MinServer 5</p></body></html>"
+    Public ReadOnly Property NotFoundError As String = "HTTP/1.1 404 Not Found" & vbCrLf & "Connection: Keep-Alive" & vbCrLf & "Content-Type: text/html" & vbCrLf & "Content-Length: 159" & vbCrLf & vbCrLf & "<html><head><title>404 - Not Found</title></head><body><h1>404 Not Found</h1><br /><p>Specified path does not exist.</p><hr /><p>MinServer 5</p></body></html>"
 
     Sub AsyncRequestProcessor(Parameter As IAsyncResult)
-        isbusy = True
         Dim tcp As TcpListener = CType(Parameter.AsyncState, TcpListener)
         Dim current As TcpClient = tcp.EndAcceptTcpClient(Parameter)
+        Do Until current.Connected
+            Thread.Yield()
+        Loop
+        isbusy = True
         Dim stream As IO.Stream
         Dim sread As BinaryReader
         Dim swrite As BinaryWriter
@@ -249,6 +254,7 @@ NoExecuted:
 
 BeginWriting: If Not ExceptionOccured Then
             MyRW.Writer.Write(MySenderData.ByteData)
+            MyRW.Writer.Write(vbLf)
             MyRW.Writer.Flush()
         End If
         MyRW.Reader.Close()

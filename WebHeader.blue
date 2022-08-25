@@ -41,12 +41,12 @@ class sender:
 		if not boolean sender.contentin:
 			run sender.write (key+": "+value+LF)
 	function start_content:
-		set sender.contentin=1
+		debugger
 		if not boolean sender.contentin:
+			set sender.contentin=1
 			run sender.write LF
 	function send_content_str data:
 		run sender.write_attribute "Content-Length",(len data)
-		set sender.contentin=1
 		run sender.start_content
 		run sender.write data
 		set sender.finished=1
