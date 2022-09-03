@@ -46,6 +46,9 @@ Module WebInterpreter
         'Private Referencer As StringBuilder = New StringBuilder
         Private ReferenceLine As Byte
 
+        Public Const ByteCR As Byte = 13
+        Public Const ByteLF As Byte = 10
+
         Public ReadOnly Property Length As Long
             Get
                 Return _byteData.Count()
@@ -145,13 +148,47 @@ Module WebInterpreter
 
         ' -1 If not found. as same as String.IndexOf
 
+        Public Sub RemoveAt(pos As Integer)
+            If (pos >= 0) AndAlso (pos < Me.Length) Then
+                Dim mlen As Integer = Me.Length - 2
+                For i = pos To mlen
+                    _byteData(i) = _byteData(i + 1)
+                Next
+                ReDim Preserve _byteData(mlen)
+            End If
+        End Sub
+
+        Public Sub RemoveCrLf()
+            For i = 0 To 1
+                If Me(0) = ByteCR Or Me(0) = ByteLF Then
+                    Me.RemoveAt(0)
+                End If
+            Next
+            For i = 0 To 1
+                If Me(Me.Length - 1) = ByteCR Or Me(Me.Length - 1) = ByteLF Then
+                    Me.RemoveAt(Me.Length - 1)
+                End If
+            Next
+        End Sub
+
+        Public Function Promise(target As String) As Boolean
+            Dim s As IO.BinaryWriter = New IO.BinaryWriter(IO.File.Open(target, IO.FileMode.OpenOrCreate))
+            s.Write(Me._byteData)
+            s.Close()
+            Return True
+        End Function
 
         Default Public Property ByteDataFromIndex(Index As Integer) As Byte
             Get
+                If Index < 0 Or Index >= Me.Length Then
+                    Return 0
+                End If
                 Return Me._byteData(Index)
             End Get
             Set(ByVal value As Byte)
-                Me._byteData(Index) = value
+                If Index >= 0 And Index < Me.Length Then
+                    Me._byteData(Index) = value
+                End If
             End Set
         End Property
 
@@ -272,9 +309,12 @@ Module WebInterpreter
                 Dim current As PostInfo.SingleData = New PostInfo.SingleData
                 Dim content As Boolean = False
                 Dim mycontent As New WebString
+                Dim debug_counter As Integer = 0
                 For Each i In spl
+                    debug_counter += 1
                     If i.ToStringWithEncoding().IndexOf(bd) >= 0 Then
                         'If Not IsNothing(current) Then
+                        mycontent.RemoveCrLf()
                         current.Content = mycontent
                         temp.Data.Add(current)
                         mycontent = New WebString
@@ -288,12 +328,12 @@ Module WebInterpreter
                         content = False
                     ElseIf STrim(i.ToStringWithEncoding()) = "" Then
                         content = True
-                        If i.Length > 0 Then
-                            If content Then
+                        'If i.Length > 0 Then
+                        If content Then
                                 mycontent.Append(i)
                                 mycontent.Append(vbLf)
                             End If
-                        End If
+                        'End If
                     Else
                         If Not IsNothing(current) Then
                             If content Then
@@ -301,7 +341,7 @@ Module WebInterpreter
                                 mycontent.Append(vbLf)
                             Else
                                 Dim args As String() = Split(i.ToStringWithEncoding(), ":", 2)
-                                current.Settings(args(0)) = trim(args(1))
+                                current.Settings(args(0)) = Trim(args(1))
                             End If
                         End If
                     End If

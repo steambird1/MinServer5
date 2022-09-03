@@ -262,9 +262,17 @@ BeginWriting: If Not ExceptionOccured Then
 FinishWriting: MyRW.Client.Close()
     End Sub
 
+    Sub DebugStart()
+        'Dim s As WebString = New WebString("ab")
+        's.RemoveAt(0)
+        's.RemoveAt(s.Length - 1)
+        'MsgBox(s.ToStringWithEncoding())
+        'End
+    End Sub
 
     Sub Main()
         Initalize()
+        DebugStart()
 
         For Each i In FileToCheck
             If Not My.Computer.FileSystem.FileExists(pather & "\" & i) Then
