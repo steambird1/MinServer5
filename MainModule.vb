@@ -14,6 +14,7 @@ Module MainModule
     Public indexname As List(Of String) = New List(Of String)({"", "index.html", "index.htm", "index.blue"})
     Public contents As Dictionary(Of String, String) = New Dictionary(Of String, String)
     Public Const interpreter As String = ".blue"
+    Public keepedata As Dictionary(Of String, String) = New Dictionary(Of String, String)
     'Private lock As Threading.SpinLock = New SpinLock()
 
     Private Sub InitalizeContents()
@@ -147,10 +148,18 @@ Module MainModule
             Next
             ' Requires ANSI for BlueBetter 4
             Dim ActiveExecuter As String = DirectoryToBluebetter & "\execute.blue"
+            Dim ActiveCommander As String = DirectoryToBluebetter & "\orders.txt"
             Dim ActiveScript As StreamWriter = My.Computer.FileSystem.OpenTextFileWriter(ActiveExecuter, False, Text.Encoding.Default)
             Dim MyHeader As StreamReader = My.Computer.FileSystem.OpenTextFileReader(pather & "\WebHeader.blue")
             ActiveScript.Write(MyHeader.ReadToEnd())
             MyHeader.Close()
+            ActiveScript.WriteLine()
+            ActiveScript.Write("keeper._init " & SetQuotes(ActiveCommander))
+            ActiveScript.WriteLine()
+            For Each i In keepedata
+                ActiveScript.Write("keeper._set " & SetQuotes(i.Key) & "," & SetQuotes(i.Value))
+                ActiveScript.WriteLine()
+            Next
             ActiveScript.WriteLine()
             ActiveScript.Write("set receiver.path=" & SetQuotes(MyWebInfo.Path))
             ActiveScript.WriteLine()
@@ -223,6 +232,29 @@ NoExecuted:
                 MyRW.Writer.Write(InternalServerError)
                 MyRW.Writer.Write(vbLf)
                 ExceptionOccured = True
+            End Try
+            Try
+                If My.Computer.FileSystem.FileExists(ActiveCommander) Then
+                    Dim MyCommanderStream As StreamReader = My.Computer.FileSystem.OpenTextFileReader(ActiveCommander)
+                    While Not MyCommanderStream.EndOfStream
+                        Dim CurrentCommand As String = MyCommanderStream.ReadLine()
+                        Dim CurrentSplit As String() = Split(CurrentCommand, " ", 2)
+                        If CurrentSplit.Count() < 2 Then
+                            Continue While
+                        End If
+                        Select Case CurrentSplit(0)
+                            Case "keep"
+                                ' Keep command
+                                ' keep [a]=[b]
+                                Dim Keeper As String() = Split(CurrentSplit(1), "=", 2)
+                                keepedata(Keeper(0)) = Keeper(1)
+                        End Select
+                    End While
+                    MyCommanderStream.Close()
+                    My.Computer.FileSystem.DeleteFile(ActiveCommander)
+                End If
+            Catch ex As Exception
+                ShowWarning("Caution: Commander may be not executed correctly: " & ex.ToString())
             End Try
             My.Computer.FileSystem.DeleteDirectory(DirectoryToBluebetter, FileIO.DeleteDirectoryOption.DeleteAllContents)
             My.Computer.FileSystem.DeleteFile(MySender)
