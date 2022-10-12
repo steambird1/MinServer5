@@ -14,6 +14,7 @@ Module MainModule
     Public indexname As List(Of String) = New List(Of String)({"", "index.html", "index.htm", "index.blue"})
     Public contents As Dictionary(Of String, String) = New Dictionary(Of String, String)
     Public Const interpreter As String = ".blue"
+    Public Const page_interpreter As String = ".bp"
     Public keepedata As Dictionary(Of String, String) = New Dictionary(Of String, String)
     'Private lock As Threading.SpinLock = New SpinLock()
 
@@ -54,7 +55,7 @@ Module MainModule
         Return prefix & num
     End Function
 
-    Private ReadOnly Property FileToCheck As List(Of String) = New List(Of String)({"WebHeader.blue", "BlueBetter4.exe", "bmain.blue"})
+    Private ReadOnly Property FileToCheck As List(Of String) = New List(Of String)({"WebHeader.blue", "BlueBetter4.exe", "bmain.blue", "BluePage.exe", "algo.blue", "BluePage.blue"})
     Private ReadOnly Property BlueESS As List(Of String) = FileToCheck
 
     Public Function SetQuotes(data As String) As String
@@ -139,18 +140,36 @@ Module MainModule
         Dim MyExtension As String = GetExtension(MyScript)
         Dim DocKind As String = GetDocumentKind(MyExtension)
 
+        Dim DirectoryToBluebetter As String = ""
+        Dim ActiveExecuter As String = ""
+        Dim ActiveCommander As String = ""
+        Dim MySender As String = ""
+        Dim ActiveScript As StreamWriter = Nothing
+        Dim MyHeader As StreamReader = Nothing
+        Dim Attachments As List(Of String) = New List(Of String)
+
+        ActiveCommander = DirectoryToBluebetter & "\orders.txt"
+
         If MyExtension = interpreter Then
-            ' ... Execute BlueBetter ...
-            Dim DirectoryToBluebetter As String = GenerateRandom(t_add)
+            ActiveExecuter = DirectoryToBluebetter & "\execute.blue"
+        ElseIf MyExtension = page_interpreter Then
+            ActiveExecuter = DirectoryToBluebetter & "\execute.bp"
+        End If
+
+        ' Prepare common environment
+        If MyExtension = interpreter OrElse MyExtension = page_interpreter Then
+            DirectoryToBluebetter = GenerateRandom(t_add)
             My.Computer.FileSystem.CreateDirectory(DirectoryToBluebetter)
             For Each i In BlueESS
                 FileCopy(pather & "\" & i, DirectoryToBluebetter & "\" & i)
             Next
-            ' Requires ANSI for BlueBetter 4
-            Dim ActiveExecuter As String = DirectoryToBluebetter & "\execute.blue"
-            Dim ActiveCommander As String = DirectoryToBluebetter & "\orders.txt"
-            Dim ActiveScript As StreamWriter = My.Computer.FileSystem.OpenTextFileWriter(ActiveExecuter, False, Text.Encoding.Default)
-            Dim MyHeader As StreamReader = My.Computer.FileSystem.OpenTextFileReader(pather & "\WebHeader.blue")
+            ActiveScript = My.Computer.FileSystem.OpenTextFileWriter(ActiveExecuter, False, Text.Encoding.Default)
+            MyHeader = My.Computer.FileSystem.OpenTextFileReader(pather & "\WebHeader.blue")
+            ' TODO: '<?blue' for page
+            If MyExtension = page_interpreter Then
+                ActiveScript.Write("<?blue")
+                ActiveScript.WriteLine()
+            End If
             ActiveScript.Write(MyHeader.ReadToEnd())
             MyHeader.Close()
             ActiveScript.WriteLine()
@@ -175,7 +194,6 @@ Module MainModule
             Dim MyContent As WebInfo.PostInfo = MyWebInfo.PostData
             Dim MyData = MyContent.Data
             Dim DataCounter As Integer = 0
-            Dim Attachments As List(Of String) = New List(Of String)
             For Each i In MyData
                 Dim TempName As String = "__postdata_" & DataCounter
                 ActiveScript.Write("set " & TempName & "=new post_data")
@@ -198,12 +216,18 @@ Module MainModule
                 ActiveScript.WriteLine()
                 DataCounter += 1
             Next
-            Dim MySender As String = GenerateRandom(DirectoryToBluebetter)
-            ActiveScript.Write("run sender._setfiles " & SetQuotes(MySender))
-            ActiveScript.WriteLine()
-            ActiveScript.Write("# Normal code -----")
-            ActiveScript.WriteLine()
-            ActiveScript.WriteLine()
+            ' Always have, but whether or not it will be written depends
+            ' on whether it's BluePage.
+            MySender = GenerateRandom(DirectoryToBluebetter)
+            If MyExtension = interpreter Then
+                ActiveScript.Write("run sender._setfiles " & SetQuotes(MySender))
+                ActiveScript.WriteLine()
+            ElseIf MyExtension = page_interpreter Then
+                ActiveScript.Write("?>")
+                ActiveScript.WriteLine()
+            End If
+            ' Requires ANSI for BlueBetter 4
+
             ' Read file to run
             Dim MyCodeContent As StreamReader = Nothing
             Try
@@ -216,9 +240,41 @@ Module MainModule
             ActiveScript.Write(MyCodeContent.ReadToEnd())
             MyCodeContent.Close()
             ActiveScript.Close()
+        End If
+
+        If MyExtension = interpreter Then
+            ' ... Execute BlueBetter ...
+            ' Previous work has been completed!
             ' Execute!
-            Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter & "", AppWinStyle.Hide, True)
-            ' Write response
+            Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter & " --const:page_mode=0", AppWinStyle.Hide, True)
+            ' Write response ...
+        ElseIf MyExtension = page_interpreter Then
+            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --const:page_mode=1")
+        Else
+            ' Send the whole file
+            ' To modify encoding and apply to everywhere!
+            Dim WholeReader As BinaryReader = New BinaryReader(File.Open(MyScript, FileMode.Open))
+            Dim WLength As Long = WholeReader.BaseStream.Length
+            'Dim WholeData As Char() = WholeReader.ReadChars(WLength)
+            Dim WholeData As Byte() = WholeReader.ReadBytes(WLength)
+            MySenderData.Append("HTTP/1.1 200 OK")
+            MySenderData.AppendLine()
+            MySenderData.Append("Content-Type: " & DocKind)
+            MySenderData.AppendLine()
+            MySenderData.Append("Content-Length: " & WLength)
+            MySenderData.AppendLine()
+            MySenderData.AppendLine()
+            MySenderData.Append(WholeData)
+            ' Promisor
+            'Dim Promisor As BinaryWriter = New BinaryWriter(File.Open(pather & "\Promise.bin", FileMode.Create), Encoding.Default)
+            'Promisor.Write(MySenderData.ByteData)
+            'Promisor.Close()
+            ' End of promisor test
+            WholeReader.Close()
+        End If
+
+        ' Special processor for interpreters
+        If MyExtension = interpreter OrElse MyExtension = page_interpreter Then
 NoExecuted:
             Try
                 Dim MySenderStream As BinaryReader = New BinaryReader(File.Open(MySender, FileMode.Open))
@@ -261,27 +317,6 @@ NoExecuted:
             For Each i In Attachments
                 My.Computer.FileSystem.DeleteFile(i)
             Next
-        Else
-            ' Send the whole file
-            ' To modify encoding and apply to everywhere!
-            Dim WholeReader As BinaryReader = New BinaryReader(File.Open(MyScript, FileMode.Open))
-            Dim WLength As Long = WholeReader.BaseStream.Length
-            'Dim WholeData As Char() = WholeReader.ReadChars(WLength)
-            Dim WholeData As Byte() = WholeReader.ReadBytes(WLength)
-            MySenderData.Append("HTTP/1.1 200 OK")
-            MySenderData.AppendLine()
-            MySenderData.Append("Content-Type: " & DocKind)
-            MySenderData.AppendLine()
-            MySenderData.Append("Content-Length: " & WLength)
-            MySenderData.AppendLine()
-            MySenderData.AppendLine()
-            MySenderData.Append(WholeData)
-            ' Promisor
-            'Dim Promisor As BinaryWriter = New BinaryWriter(File.Open(pather & "\Promise.bin", FileMode.Create), Encoding.Default)
-            'Promisor.Write(MySenderData.ByteData)
-            'Promisor.Close()
-            ' End of promisor test
-            WholeReader.Close()
         End If
 
 BeginWriting: If Not ExceptionOccured Then

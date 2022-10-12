@@ -1,0 +1,3 @@
+
+function echo data:
+	call bluecho,data+LF
