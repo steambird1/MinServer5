@@ -2284,6 +2284,7 @@ int main(int argc, char* argv[]) {
 		next_pos = end_pos;
 	}
 	while (content.length() && (content[0] == '\n' || content[0] == '\r')) content.erase(content.begin());
+	while (header.length() && (header[header.length() - 1] == '\n' || header[header.length() - 1] == '\r')) header.pop_back();
 	content += code.substr(previous_pos);
 	FILE *fout = fopen(target_path.c_str(), "w");
 	fprintf(fout, "%s\n", header.c_str());

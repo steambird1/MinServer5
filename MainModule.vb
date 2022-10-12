@@ -249,7 +249,7 @@ Module MainModule
             Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter & " --const:page_mode=0", AppWinStyle.Hide, True)
             ' Write response ...
         ElseIf MyExtension = page_interpreter Then
-            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --const:page_mode=1")
+            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --const:page_mode=1", AppWinStyle.Hide, True)
         Else
             ' Send the whole file
             ' To modify encoding and apply to everywhere!
@@ -312,11 +312,15 @@ NoExecuted:
             Catch ex As Exception
                 ShowWarning("Caution: Commander may be not executed correctly: " & ex.ToString())
             End Try
-            My.Computer.FileSystem.DeleteDirectory(DirectoryToBluebetter, FileIO.DeleteDirectoryOption.DeleteAllContents)
-            My.Computer.FileSystem.DeleteFile(MySender)
-            For Each i In Attachments
-                My.Computer.FileSystem.DeleteFile(i)
-            Next
+            Try
+                My.Computer.FileSystem.DeleteDirectory(DirectoryToBluebetter, FileIO.DeleteDirectoryOption.DeleteAllContents)
+                My.Computer.FileSystem.DeleteFile(MySender)
+                For Each i In Attachments
+                    My.Computer.FileSystem.DeleteFile(i)
+                Next
+            Catch ex As Exception
+                ShowWarning("Caution: Commander may be not executed correctly: " & ex.ToString())
+            End Try
         End If
 
 BeginWriting: If Not ExceptionOccured Then
