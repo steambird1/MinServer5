@@ -2129,8 +2129,8 @@ int main(int argc, char* argv[]) {
 	// Test: Input code here:
 #pragma region Compiler Test Option
 #if _DEBUG
-	string code = "", file = "test1.bp";
-	target_path = "target.html";
+	string code = "", file = "";
+	target_path = "";
 	in_debug = false;
 	no_lib = false;
 

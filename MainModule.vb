@@ -148,6 +148,7 @@ Module MainModule
         Dim MyHeader As StreamReader = Nothing
         Dim Attachments As List(Of String) = New List(Of String)
 
+        DirectoryToBluebetter = GenerateRandom(t_add)
         ActiveCommander = DirectoryToBluebetter & "\orders.txt"
 
         If MyExtension = interpreter Then
@@ -158,7 +159,6 @@ Module MainModule
 
         ' Prepare common environment
         If MyExtension = interpreter OrElse MyExtension = page_interpreter Then
-            DirectoryToBluebetter = GenerateRandom(t_add)
             My.Computer.FileSystem.CreateDirectory(DirectoryToBluebetter)
             For Each i In BlueESS
                 FileCopy(pather & "\" & i, DirectoryToBluebetter & "\" & i)

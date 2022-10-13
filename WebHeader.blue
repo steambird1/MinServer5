@@ -30,32 +30,32 @@ class sender:
 		set sender.finished=0
 		run sender.stream.open sender.sendname,1
 	function write data:
-		if page_mode:
+		if page_mode=1:
 			raise "Cannot use sender"
 		run sender.stream.write data
 	function writebin binary:
-		if page_mode:
+		if page_mode=1:
 			raise "Cannot use sender"
 		set binary_o=object binary
 		run sender.stream.write_binary binary_o
 	function write_header server_version response_code response_text:
-		if page_mode:
+		if page_mode=1:
 			raise "Cannot use sender"
 		if not boolean sender.contentin:
 			run sender.write (server_version+" "+response_code+" "+response_text+LF)
 	function write_attribute key value:
-		if page_mode:
+		if page_mode=1:
 			raise "Cannot use sender"
 		if not boolean sender.contentin:
 			run sender.write (key+": "+value+LF)
 	function start_content:
-		if page_mode:
+		if page_mode=1:
 			raise "Cannot use sender"
 		if not boolean sender.contentin:
 			set sender.contentin=1
 			run sender.write LF
 	function send_content_str data:
-		if page_mode:
+		if page_mode=1:
 			raise "Cannot use sender"
 		run sender.write_attribute "Content-Length",(len data)
 		run sender.start_content
