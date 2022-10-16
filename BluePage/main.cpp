@@ -2129,6 +2129,7 @@ int main(int argc, char* argv[]) {
 	// Test: Input code here:
 #pragma region Compiler Test Option
 #if _DEBUG
+	// Warning: When testing VBWeb can't use it
 	string code = "", file = "";
 	target_path = "";
 	in_debug = false;
