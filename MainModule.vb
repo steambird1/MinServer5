@@ -11,7 +11,7 @@ Module MainModule
     Public listener As TcpListener
     Public islisten As Boolean = True
     Private isbusy As Integer = 0
-    Public indexname As List(Of String) = New List(Of String)({"", "index.html", "index.htm", "index.blue"})
+    Public indexname As List(Of String) = New List(Of String)({"", "index.html", "index.htm", "index.blue", "index.bp"})
     Public contents As Dictionary(Of String, String) = New Dictionary(Of String, String)
     Public Const interpreter As String = ".blue"
     Public Const page_interpreter As String = ".bp"
