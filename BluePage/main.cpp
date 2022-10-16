@@ -1932,6 +1932,18 @@ intValue preRun(string code, varmap &myenv, map<string, string> required_global 
 	intcalls["eval"] = [](string args, varmap &env) -> intValue {
 		return run(calcute(args, env).str, env, "Internal eval()");
 	};
+	// Syncing for it
+		// It is better to add more functions by intcalls, not set
+#define math_extension(funame) intcalls["_maths_" #funame] = [](string args, varmap &env) -> intValue { \
+		return intValue(funame(calcute(args, env).numeric)); \
+	}
+	math_extension(sin);
+	math_extension(cos);
+	math_extension(tan);
+	math_extension(asin);
+	math_extension(acos);
+	math_extension(atan);
+	math_extension(sqrt);
 	for (auto &i : required_callers) {
 		intcalls[i.first] = i.second;
 	}
