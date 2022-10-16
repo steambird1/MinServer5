@@ -2290,7 +2290,14 @@ int main(int argc, char* argv[]) {
 	FILE *fout = fopen(target_path.c_str(), "w");
 	fprintf(fout, "%s\n", header.c_str());
 	if (autolen) {
-		fprintf(fout, "Content-Length: %d\n", content.length());
+		size_t cl = content.length();
+		// Add a special patch for windows CR-LF.
+		size_t tgt = 0;
+		while ((tgt = content.find('\n', tgt)) != string::npos) {
+			cl++;	// Add for CR.
+			tgt++;	// Length of LF.
+		}
+		fprintf(fout, "Content-Length: %d\n", cl);
 	}
 	fprintf(fout, "\n%s", content.c_str());
 	fclose(fout);
