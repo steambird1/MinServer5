@@ -261,7 +261,14 @@ Module WebInterpreter
                         End If
                         Try
                             spl(1) = Split(spl(1), "=", 2)(1)
-                            Return Trim(spl(1))
+                            Dim t As String = Trim(spl(1))
+                            While t.Length > 0 AndAlso (t(0) = """" OrElse t(0) = vbCr OrElse t(0) = vbLf)
+                                t = t.Remove(0, 1)
+                            End While
+                            While t.Length > 0 AndAlso (t(t.Length - 1) = """" OrElse t(t.Length - 1) = vbCr OrElse t(t.Length - 1) = vbLf)
+                                t = t.Remove(t.Length - 1)
+                            End While
+                            Return t
                         Catch ex As IndexOutOfRangeException
                             Return ""
                         End Try
