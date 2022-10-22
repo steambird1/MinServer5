@@ -88,11 +88,11 @@ int getIndentRaw(string str, int maxfetch = -1) {
 
 // quotes and dinner will be reserved
 // N maxsplit = N+1 elements. -1 means no maxsplit
-vector<string> split(string str, char delimiter = '\n', int maxsplit = -1, char allowedquotes = '"', char allowedinner = -1) {
+vector<string> split(string str, char delimiter = '\n', int maxsplit = -1, char allowedquotes = '"', char allowedinner = -1, bool reserve_dinner = false) {
 	// Manually breaks
 	bool qmode = false, dmode = false;
 	vector<string> result;
-	if (maxsplit > 0) result.reserve(maxsplit + 1);	// Optimizes :)
+	if (maxsplit > 0) result.reserve(maxsplit);
 	string strtmp = "";
 	for (size_t i = 0; i < str.length(); i++) {
 		char &cs = str[i];
@@ -101,6 +101,7 @@ vector<string> split(string str, char delimiter = '\n', int maxsplit = -1, char 
 		}
 		if (cs == allowedinner && (!dmode)) {
 			dmode = true;
+			if (reserve_dinner) strtmp += cs;
 		}
 		else {
 			dmode = false;
@@ -366,7 +367,7 @@ const set<string> magics = { ".__type__", ".__inherits__", ".__arg__", ".__must_
 				return;
 			}
 			serial = serial.substr(mymagic.length());
-			vector<string> lspl = split(serial);
+			vector<string> lspl = split(serial, '\n', -1, '\"', '\\', true);
 			for (auto &i : lspl) {
 				vector<string> itemspl = split(i, '=', 1);
 				if (itemspl.size() < 2) itemspl.push_back("null");
@@ -547,11 +548,15 @@ private:
 	map<string, string> inhs;
 } inh_map;
 
-string formatting(string origin, char dinner = '\\') {
+// Ignorer can be quote-like char.
+string formatting(string origin, char dinner = '\\', char ignorer = -1) {
 	string ns = "";
-	bool dmode = false;
+	bool dmode = false, ign = false;
 	for (size_t i = 0; i < origin.length(); i++) {
-		if (origin[i] == dinner && (!dmode)) {
+		if (origin[i] == ignorer && (!dmode)) {
+			ign = !ign;
+		}
+		if (origin[i] == dinner && (!dmode) && (!ign)) {
 			dmode = true;
 		}
 		else {
@@ -562,7 +567,8 @@ string formatting(string origin, char dinner = '\\') {
 	return ns;
 }
 
-intValue getValue(string single_expr, varmap &vm) {
+// If save_quote, formatting() will not process anything inside quote.
+intValue getValue(string single_expr, varmap &vm, bool save_quote = false) {
 	if (single_expr == "null" || single_expr == "") return null;
 	// Remove any '(' in front
 	while (single_expr.length() && single_expr[0] == '(') {
@@ -570,7 +576,7 @@ intValue getValue(string single_expr, varmap &vm) {
 		single_expr.erase(single_expr.begin());
 	}
 	if (single_expr[0] == '"' && single_expr[single_expr.length() - 1] == '"') {
-		return formatting(single_expr.substr(1, single_expr.length() - 2));
+		return formatting(single_expr.substr(1, single_expr.length() - 2), '\\', (save_quote ? '\"' : char(-1)));
 	}
 	// Is number?
 	bool dot = false, isnum = true;
@@ -1264,7 +1270,8 @@ intValue run(string code, varmap &myenv, string fname) {
 			else if (beginWith(codexec2[1], "object ")) {
 				vector<string> codexec3 = split(codexec2[1], ' ', 1);
 				parameter_check3(2, "Operator number");
-				myenv.deserial(codexec2[0], calcute(codexec3[1], myenv).str);
+				// WARNING: WILL NOT CALCUTE ANYMORE
+				myenv.deserial(codexec2[0], getValue(codexec3[1], myenv, true).str);
 			}
 			else if (beginWith(codexec2[1], "serial ")) {
 				vector<string> codexec3 = split(codexec2[1], ' ', 1);
@@ -1888,6 +1895,8 @@ intValue run(string code, varmap &myenv, string fname) {
 
 string env_name;	// Directory of current file.
 
+const set<char> to_trim = { ' ', '\n', '\r', -1 };
+
 // This 'myenv' must be pushed
 intValue preRun(string code, varmap &myenv, map<string, string> required_global = {}, map<string, bcaller> required_callers = {}) {
 	// Should prepare functions for it.
@@ -1944,6 +1953,13 @@ intValue preRun(string code, varmap &myenv, map<string, string> required_global 
 	math_extension(acos);
 	math_extension(atan);
 	math_extension(sqrt);
+	intcalls["_trim"] = [](string args, varmap &env) -> intValue {
+		string s = calcute(args, env).str;
+		while (s.length() && to_trim.count(s[s.length() - 1])) s.pop_back();
+		size_t spl;
+		for (spl = 0; spl < s.length(); spl++) if (!to_trim.count(s[spl])) break;
+		return intValue(s.substr(spl));
+	};
 	for (auto &i : required_callers) {
 		intcalls[i.first] = i.second;
 	}
@@ -2159,7 +2175,7 @@ int main(int argc, char* argv[]) {
 	in_debug = false;
 	no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 1.0\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.10\nCompiled on ") + __DATE__ + " " + __TIME__;
+	string version_info = string("BluePage Interpreter\nVersion 1.0\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.10a\nCompiled on ") + __DATE__ + " " + __TIME__;
 #pragma endregion
 	// End
 
