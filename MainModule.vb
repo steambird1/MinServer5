@@ -187,7 +187,7 @@ Module MainModule
             ActiveScript.Write("set receiver.method=" & SetQuotes(MyWebInfo.Method))
             ActiveScript.WriteLine()
             For Each i In MyWebInfo.Settings
-                ActiveScript.Write("set receiver.attributes#" & SetQuotes(i.Key) & "=" & SetQuotes(i.Value))
+                ActiveScript.Write("set receiver.attributes:" & SetQuotes(i.Key) & "=" & SetQuotes(i.Value))
                 ActiveScript.WriteLine()
             Next
             ' Get content data...
@@ -209,7 +209,7 @@ Module MainModule
                 ActiveScript.Write("set " & TempName & ".myfile=" & SetQuotes(CurrentFilename))
                 ActiveScript.WriteLine()
                 For Each j In i.Settings
-                    ActiveScript.Write("set " & TempName & ".attributes#" & SetQuotes(j.Key) & "=" & SetQuotes(j.Value))
+                    ActiveScript.Write("set " & TempName & ".attributes:" & SetQuotes(j.Key) & "=" & SetQuotes(j.Value))
                     ActiveScript.WriteLine()
                 Next
                 ActiveScript.Write("run receiver.content.append " & TempName)
