@@ -487,7 +487,8 @@ private:
 			if (beginWith(j.first, name + ".")) {
 				//vector<string> spl = split(j.first, '.', 1);
 				vector<string> spl = { "","" };
-				size_t fl = j.first.find_first_of('.');
+				size_t fl = j.first.find('.', j.first.find(name) + name.length());
+				if (fl == string::npos) continue;
 				spl[0] = j.first.substr(0, fl);
 				if (spl[0] != name) continue;
 				spl[1] = j.first.substr(fl + 1);
