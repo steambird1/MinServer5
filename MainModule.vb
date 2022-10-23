@@ -49,7 +49,8 @@ Module MainModule
             End If
             Dim PortPosition As Integer = i.IndexOf("--port:")
             If PortPosition >= 0 Then
-                PortPosition = Val(i.Substring(PortPosition + "--port:".Length))
+                Dim PortPre As String = i.Substring(PortPosition + "--port:".Length)
+                PortPosition = Val(PortPre)
             End If
         Next
     End Sub
