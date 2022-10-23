@@ -34,6 +34,9 @@ Module MainModule
         For Each i In My.Application.CommandLineArgs
             If i = "--debug" Then
                 IsDebug = "--debug"
+                Console.ForegroundColor = ConsoleColor.Magenta
+                Console.Out.Write("*** Server is in debug mode ***")
+                Console.ForegroundColor = ConsoleColor.White
                 Continue For
             End If
             If i = "--version" Then
@@ -42,6 +45,7 @@ Module MainModule
                 Console.Out.WriteLine()
                 Console.Out.Write("With BlueBetter and BluePage interpreter")
                 Console.Out.WriteLine()
+                End
             End If
             Dim PortPosition As Integer = i.IndexOf("--port:")
             If PortPosition >= 0 Then
