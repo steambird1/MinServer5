@@ -16,6 +16,8 @@ Module MainModule
     Public Const interpreter As String = ".blue"
     Public Const page_interpreter As String = ".bp"
     Public keepedata As Dictionary(Of String, String) = New Dictionary(Of String, String)
+    Public IsDebug As String = ""                       ' If do so, here will be --debug
+    Public Port As Integer = 80                             ' Default port
     'Private lock As Threading.SpinLock = New SpinLock()
 
     Private Sub InitalizeContents()
@@ -29,6 +31,23 @@ Module MainModule
 
     Private Sub Initalize()
         InitalizeContents()
+        For Each i In My.Application.CommandLineArgs
+            If i = "--debug" Then
+                IsDebug = "--debug"
+                Continue For
+            End If
+            If i = "--version" Then
+                ' Get its version info:
+                Console.Out.Write("MinServer 5")
+                Console.Out.WriteLine()
+                Console.Out.Write("With BlueBetter and BluePage interpreter")
+                Console.Out.WriteLine()
+            End If
+            Dim PortPosition As Integer = i.IndexOf("--port:")
+            If PortPosition >= 0 Then
+                PortPosition = Val(i.Substring(PortPosition + "--port:".Length))
+            End If
+        Next
     End Sub
 
     Public Structure ReadWrites
@@ -123,7 +142,13 @@ Module MainModule
         End If
         ' Create BlueBetter Environment under temp directory
         Dim t_add As String = Environ("temp") & "\"
-        Dim MyScriptRaw As String = pather & "\" & MyWebInfo.Path
+        Dim FilePath As String = MyWebInfo.Path
+        Dim FilePathSeeker As Integer = FilePath.IndexOf("?")
+        If FilePathSeeker >= 0 Then
+            ' Mustn't include '?' component:
+            FilePath = FilePath.Substring(0, FilePathSeeker)
+        End If
+        Dim MyScriptRaw As String = pather & "\" & FilePath
         Dim MyScript As String = MyScriptRaw
         ' Detect if directory
         For Each i In indexname
@@ -246,10 +271,10 @@ Module MainModule
             ' ... Execute BlueBetter ...
             ' Previous work has been completed!
             ' Execute!
-            Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter & " --const:page_mode=0", AppWinStyle.Hide, True)
+            Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter & " --const:page_mode=0 " & IsDebug, AppWinStyle.Hide, True)
             ' Write response ...
         ElseIf MyExtension = page_interpreter Then
-            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --const:page_mode=1", AppWinStyle.Hide, True)
+            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --const:page_mode=1 " & IsDebug, AppWinStyle.Hide, True)
         Else
             ' Send the whole file
             ' To modify encoding and apply to everywhere!
@@ -359,7 +384,7 @@ FinishWriting: MyRW.Client.Close()
 
         Console.Out.WriteLine()
 
-        listener = New TcpListener(local, 80)
+        listener = New TcpListener(local, Port)
         Try
             listener.Start()
         Catch ex As SocketException
