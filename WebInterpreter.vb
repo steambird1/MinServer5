@@ -233,11 +233,21 @@ Module WebInterpreter
                     Return ""
                 End If
                 Try
-                    spl(1) = Split(spl(1), "=", 2)(1)
+                    Dim nspl As String() = Split(spl(1), "=", 2)
+                    If Trim(StrConv(nspl(0), VbStrConv.Lowercase)) <> "boundary" Then
+                        Return ""
+                    End If
+                    spl(1) = nspl(1)
                     Return Trim(spl(1))
                 Catch ex As IndexOutOfRangeException
                     Return ""
                 End Try
+            End Get
+        End Property
+
+        Public ReadOnly Property HaveBoundary As Boolean
+            Get
+                Return Trim(MyBoundary) <> ""
             End Get
         End Property
 

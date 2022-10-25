@@ -221,31 +221,43 @@ Module MainModule
                 ActiveScript.WriteLine()
             Next
             ' Get content data...
-            Dim MyContent As WebInfo.PostInfo = MyWebInfo.PostData
-            Dim MyData = MyContent.Data
-            Dim DataCounter As Integer = 0
-            For Each i In MyData
-                Dim TempName As String = "__postdata_" & DataCounter
-                ActiveScript.Write("set " & TempName & "=new post_data")
-                ActiveScript.WriteLine()
-                ActiveScript.Write("set " & TempName & ".name=" & SetQuotes(i.FieldName))
-                ActiveScript.WriteLine()
-                ' Get file for it
-                Dim CurrentFilename As String = GenerateRandom(DirectoryToBluebetter)
-                Dim CurrentStream As BinaryWriter = New BinaryWriter(File.Open(CurrentFilename, FileMode.Create), Encoding.Default)
-                Attachments.Add(CurrentFilename)
-                i.SaveTo(CurrentStream)
-                CurrentStream.Close()
-                ActiveScript.Write("set " & TempName & ".myfile=" & SetQuotes(CurrentFilename))
-                ActiveScript.WriteLine()
-                For Each j In i.Settings
-                    ActiveScript.Write("set " & TempName & ".attributes:" & SetQuotes(j.Key) & "=" & SetQuotes(j.Value))
+            If MyWebInfo.HaveBoundary Then
+                Dim MyContent As WebInfo.PostInfo = MyWebInfo.PostData
+                Dim MyData = MyContent.Data
+                Dim DataCounter As Integer = 0
+                For Each i In MyData
+                    Dim TempName As String = "__postdata_" & DataCounter
+                    ActiveScript.Write("set " & TempName & "=new post_data")
                     ActiveScript.WriteLine()
+                    ActiveScript.Write("set " & TempName & ".name=" & SetQuotes(i.FieldName))
+                    ActiveScript.WriteLine()
+                    ' Get file for it
+                    Dim CurrentFilename As String = GenerateRandom(DirectoryToBluebetter)
+                    Dim CurrentStream As BinaryWriter = New BinaryWriter(File.Open(CurrentFilename, FileMode.Create), Encoding.Default)
+                    Attachments.Add(CurrentFilename)
+                    i.SaveTo(CurrentStream)
+                    CurrentStream.Close()
+                    ActiveScript.Write("set " & TempName & ".myfile=" & SetQuotes(CurrentFilename))
+                    ActiveScript.WriteLine()
+                    For Each j In i.Settings
+                        ActiveScript.Write("set " & TempName & ".attributes:" & SetQuotes(j.Key) & "=" & SetQuotes(j.Value))
+                        ActiveScript.WriteLine()
+                    Next
+                    ActiveScript.Write("run receiver.content.append " & TempName)
+                    ActiveScript.WriteLine()
+                    DataCounter += 1
                 Next
-                ActiveScript.Write("run receiver.content.append " & TempName)
+            Else
+                Dim ReceiverFilename As String = GenerateRandom(DirectoryToBluebetter)
+                Dim ReceiverStream As BinaryWriter = New BinaryWriter(File.Open(ReceiverFilename, FileMode.Create), Encoding.Default)
+                Attachments.Add(ReceiverFilename)
+                ReceiverStream.Write(MyWebInfo.Content.ByteData)
+                ReceiverStream.Close()
+                ActiveScript.Write("set receiver.content=new post_data")
                 ActiveScript.WriteLine()
-                DataCounter += 1
-            Next
+                ActiveScript.Write("set receiver.content.myfile=" & SetQuotes(ReceiverFilename))
+                ActiveScript.WriteLine()
+            End If
             ' Always have, but whether or not it will be written depends
             ' on whether it's BluePage.
             MySender = GenerateRandom(DirectoryToBluebetter)
