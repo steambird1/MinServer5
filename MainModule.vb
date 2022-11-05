@@ -96,9 +96,8 @@ Module MainModule
         Return s.ToString()
     End Function
 
-    ' Note: data is fixed !!!
-    Public ReadOnly Property InternalServerError As String = "HTTP/1.1 500 Internal Server Error" & vbCrLf & "Connection: Keep-Alive" & vbCrLf & "Content-Type: text/html" & vbCrLf & "Content-Length: 211" & vbCrLf & vbCrLf & "<html><head><title>500 - Internal Server Error</title></head><body><h1>500 Internal Server Error</h1><br /><p>The BlueBetter Program didn't provide any content to send.</p><hr /><p>MinServer 5</p></body></html>"
-    Public ReadOnly Property NotFoundError As String = "HTTP/1.1 404 Not Found" & vbCrLf & "Connection: Keep-Alive" & vbCrLf & "Content-Type: text/html" & vbCrLf & "Content-Length: 159" & vbCrLf & vbCrLf & "<html><head><title>404 - Not Found</title></head><body><h1>404 Not Found</h1><br /><p>Specified path does not exist.</p><hr /><p>MinServer 5</p></body></html>"
+    Public ReadOnly Property InternalServerError As String = "HTTP/1.1 500 Internal Server Error" & vbLf & "Connection: Keep-Alive" & vbLf & "Content-Type: text/html" & vbLf & "Content-Length: 373" & vbLf & vbLf & "<html><head><title>500 - Internal Server Error</title></head><body><h1>500 Internal Server Error</h1><br /><p>The BlueBetter Program didn't provide any content to send.</p><hr /><p>MinServer 5</p></body></html>"
+    Public ReadOnly Property NotFoundError As String = "HTTP/1.1 404 Not Found" & vbLf & "Connection: Keep-Alive" & vbLf & "Content-Type: text/html" & vbLf & "Content-Length: 309" & vbLf & vbLf & "<html><head><title>404 - Not Found</title></head><body><h1>404 Not Found</h1><br /><p>Specified path does not exist.</p><hr /><p>MinServer 5</p></body></html>"
 
     Sub AsyncRequestProcessor(Parameter As IAsyncResult)
         Dim tcp As TcpListener = CType(Parameter.AsyncState, TcpListener)
@@ -219,6 +218,7 @@ Module MainModule
             ActiveScript.Write("set receiver.method=" & SetQuotes(MyWebInfo.Method))
             ActiveScript.WriteLine()
             ActiveScript.Write("set receiver.server_dir=" & SetQuotes(pather))
+            ActiveScript.WriteLine()
             For Each i In MyWebInfo.Settings
                 ActiveScript.Write("set receiver.attributes:" & SetQuotes(i.Key) & "=" & SetQuotes(i.Value))
                 ActiveScript.WriteLine()
