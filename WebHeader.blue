@@ -8,6 +8,36 @@ class receiver:
 	shared http_version
 	shared method
 	shared content
+	shared server_dir
+
+class path_resolver:
+	function resolve path:
+		set this.args=new dict
+		set this.path=""
+		set argmode=false
+		set mykey=""
+		set myvalue=""
+		set inkey=true
+		for i=0~len path:
+			if (path#i)="?":
+				set argmode=true
+			else:
+				if argmode:
+					if (path#i)="&":
+						set inkey=true
+						set this.args:mykey=myvalue
+						set mykey=""
+						set myvalue=""
+					elif (path#i)="=":
+						set inkey=false
+					else:
+						if inkey:
+							set mykey=mykey+(path#i)
+						else:
+							set myvalue=myvalue+(path#i)
+				else:
+					set this.path=this.path+(path#i)
+		set this.args:mykey=myvalue
 
 class post_data:
 	init:

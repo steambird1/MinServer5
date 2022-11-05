@@ -68,7 +68,9 @@ Module MainModule
     End Structure
 
     Private r As Random = New Random
-    ' Requires '\'
+    ''' <summary>
+    ''' Current environmental directory. Has '\' at the end of the string.
+    ''' </summary>
     Private pather As String = Environment.CurrentDirectory
 
     Private Function GenerateRandom(prefix As String)
@@ -216,6 +218,7 @@ Module MainModule
             ActiveScript.WriteLine()
             ActiveScript.Write("set receiver.method=" & SetQuotes(MyWebInfo.Method))
             ActiveScript.WriteLine()
+            ActiveScript.Write("set receiver.server_dir=" & SetQuotes(pather))
             For Each i In MyWebInfo.Settings
                 ActiveScript.Write("set receiver.attributes:" & SetQuotes(i.Key) & "=" & SetQuotes(i.Value))
                 ActiveScript.WriteLine()
@@ -247,6 +250,8 @@ Module MainModule
                     ActiveScript.WriteLine()
                     DataCounter += 1
                 Next
+                ActiveScript.Write("set receiver.ispost=true")
+                ActiveScript.WriteLine()
             Else
                 Dim ReceiverFilename As String = GenerateRandom(DirectoryToBluebetter)
                 Dim ReceiverStream As BinaryWriter = New BinaryWriter(File.Open(ReceiverFilename, FileMode.Create), Encoding.Default)
@@ -256,6 +261,8 @@ Module MainModule
                 ActiveScript.Write("set receiver.content=new post_data")
                 ActiveScript.WriteLine()
                 ActiveScript.Write("set receiver.content.myfile=" & SetQuotes(ReceiverFilename))
+                ActiveScript.WriteLine()
+                ActiveScript.Write("set receiver.ispost=false")
                 ActiveScript.WriteLine()
             End If
             ' Always have, but whether or not it will be written depends
