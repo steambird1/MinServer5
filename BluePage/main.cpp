@@ -1019,6 +1019,7 @@ intValue calcute(string expr, varmap &vm) {
 #define parameter_check2(req,ext) do {if (codexec2.size() < req) {raise_ce(string("Error: required parameter not given in sub command ") + ext); return null;}} while (false)
 #define parameter_check3(req,ext) do {if (codexec3.size() < req) {raise_ce(string("Error: required parameter not given in sub command ") + ext); return null;}} while (false)
 #define dshell_check(req) do {if (spl.size() < req) {cout << "Bad command" << endl; goto dend;}} while (false)
+#define postback_check(req) do {if (descmd.size() < req) {raise_global_ce("Error: required parameter not given in postback settings"); }} while (false)
 
 string curexp(string exp, varmap &myenv) {
 	vector<string> dasher = split(exp, ':');
@@ -2151,6 +2152,7 @@ intValue preRun(string code, varmap &myenv, map<string, string> required_global 
 	return res;
 }
 
+char post_buf1[8192] = {};
 
 int main(int argc, char* argv[]) {
 	stdouth = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -2301,11 +2303,95 @@ int main(int argc, char* argv[]) {
 		beginner++;
 		size_t run_size = end_pos - beginner;
 		current_code = code.substr(beginner, run_size);
+		bool postback_set = false;
 		if (options.count("initial")) {
 			preRun(current_code, keep_env, reqs, { {string("bluecho"), initial_echo} });
 		}
 		else if (options.count("autolen")) {
 			autolen = true;
+		}
+		else if (options.count("postback")) {
+			/*
+			Postback format:
+			listen [HTML id].[event like onXXX]
+			postback [HTML id].[name] (All of them will become string ...)
+			before_send [JS Function] (Only 1 is acceptable)
+			after_send [JS Function] (Only 1 is acceptable)
+			*/
+			string &myself = reqs["SELF_POST"];
+			string &is_postback = reqs["IS_POSTBACK"];	// To deal with postback
+			string my_bef_send = "", my_aft_send = "";
+			if (myself == "") {
+				raise_global_ce("Cannot use postback: SELF_POST is not supported by Server");
+			}
+			else if (postback_set) {
+				raise_global_ce("Cannot add 2 or more postback description in a file");
+			}
+			else {
+				postback_set = true;
+				autolen = true;	// Since postback is used autolen must be used -- <script> will be inserted!
+				vector<string> exprs = split(current_code), curcmd, descmd;
+				content += "<script>\n";
+
+				// Add object-liked string for 'onpostback'.
+				string onloadcall = "window.onload = function() {\n", onpostback = "function mins_postback(info) {\n	var sending = \"__object$\\n\";\n";
+
+				// Write JavaScript into content
+				for (size_t i = 0; i < exprs.size(); i++) {
+					string &cur = exprs[i];
+					curcmd = split(cur, ' ', 1);
+					if (curcmd.size() < 2) continue;
+					if (curcmd[0] == "listen") {
+						descmd = split(curcmd[1], '.', 1);
+						postback_check(2);
+						onloadcall += "	document.getElementById('" + descmd[0] + "')." + descmd[1] + " = function() { mins_postback('" + descmd[0] + "." + descmd[1] + "'); };\n";
+					}
+					else if (curcmd[0] == "postback") {
+						descmd = split(curcmd[1], '.', 1);
+						postback_check(2);
+						onpostback += "	sending += '.document." + descmd[0] + "." + descmd[1] + "=\"' + document.getElementById('" + descmd[0] + "')." + descmd[1] + ".toString() + '\"\\n';\n";
+					}
+					else if (curcmd[0] == "before_send") {
+						my_bef_send = curcmd[1];
+					}
+					else if (curcmd[0] == "after_send") {
+						my_aft_send = curcmd[1];
+					}
+					else {
+						raise_global_ce("Bad postback description");
+					}
+				}
+
+				onloadcall += "\n};";
+				onpostback += "\n	if (info != null) sending += '.field=\"' + info.toString() + '\"';\n	var xhr = new XMLHttpRequest();\n	new Promise(function(r,rj){";
+				if (my_bef_send.length()) onpostback += my_bef_send + "();";
+				onpostback += "r(null);}).then(function(arg){xhr.open('POST', '" + myself +"', false); xhr.send(sending); mins_dealing(xhr.responseText); })";
+				if (my_aft_send.length()) onpostback += ".then(function(arg){" + my_aft_send + "();})";
+
+				// Read Postback processor.
+				FILE *fread = fopen("Postback.js", "r");
+				if (fread == NULL) {
+					raise_global_ce("Cannot add JavaScript support of PostBack");
+				}
+				else {
+					while (!feof(fread)) {
+						fgets(post_buf1, 8192, fread);
+						content += string(post_buf1) + "\n";
+					}
+					fclose(fread);
+					content += onloadcall;
+					content += "\n";
+					content += onpostback;
+
+					content += "</script>\n";
+				}
+				
+
+				// Also deal with postback in the field
+				if (is_postback == "1") {
+					// To be written... serial object into postback support, also send commands back.
+				}
+			}
 		}
 		else {
 			preRun(current_code, keep_env, reqs, { {string("bluecho"), normal_echo} });
