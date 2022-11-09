@@ -124,8 +124,15 @@ class postback:
 	# document and field are reserved!
 	shared class
 	function get control attrib:
-		return postback.document:(control+"."+attrib)
+		return postback.data.document:(control+"."+attrib)
 	function set control attrib value:
-		sender.write (control+"."+attrib+"="+value+LF)
+		set ca=control+"."+attrib
+		set postback.data.document:ca=value
+		sender.write (ca+"="+value+LF)
 	function _inside_process:
+		if receiver.ispost:
+			raise "Incorrect postback form"
+		set s=object receiver.content.open
+		set postback.data=object s.read_to_end
+		s.close
 		$postback.field
