@@ -18,6 +18,7 @@ Module MainModule
     Public keepedata As Dictionary(Of String, String) = New Dictionary(Of String, String)
     Public IsDebug As String = ""                       ' If do so, here will be --debug
     Public Port As Integer = 80                             ' Default port
+    Public Const PostBackEntry As String = "MinServerPostBack"
     'Private lock As Threading.SpinLock = New SpinLock()
 
     Private Sub InitalizeContents()
@@ -186,6 +187,12 @@ Module MainModule
             ActiveExecuter = DirectoryToBluebetter & "\execute.blue"
         ElseIf MyExtension = page_interpreter Then
             ActiveExecuter = DirectoryToBluebetter & "\execute.bp"
+        End If
+
+        Dim SelfPost As String = MyWebInfo.Path
+        Dim IsPostBack As String = "0"
+        If MyWebInfo.Settings.ContainsKey(PostBackEntry) Then
+            IsPostBack = MyWebInfo.Settings(PostBackEntry)
         End If
 
         ' Prepare common environment
