@@ -127,3 +127,5 @@ class postback:
 		return postback.document:(control+"."+attrib)
 	function set control attrib value:
 		sender.write (control+"."+attrib+"="+value+LF)
+	function _inside_process:
+		$postback.field

@@ -2317,10 +2317,22 @@ int main(int argc, char* argv[]) {
 			postback [HTML id].[name] (All of them will become string ...)
 			before_send [JS Function] (Only 1 is acceptable)
 			after_send [JS Function] (Only 1 is acceptable)
+
+			Event in the code must be like [HTML id]_[event], not using '.'!
 			*/
+			autolen = true;	// Since postback is used autolen must be used -- <script> will be inserted!
 			string &myself = reqs["SELF_POST"];
-			string &is_postback = reqs["IS_POSTBACK"];	// To deal with postback
+			// Should be provided:
+			// Matches 'xhr.setRequestHeader('MinServerPostBack','1');' in the header.
+			string &is_postback = reqs["IS_POSTBACK"];	// To deal with postback, 0 or 1
 			string my_bef_send = "", my_aft_send = "";
+			// Also deal with postback in the field
+			if (is_postback == "1") {
+				// To be written... serial object into postback support, also send commands back.
+				// AND: ANYTHING AFTER IT will be ignored!!!
+				preRun("postback._inside_process", keep_env, reqs, { {string("bluecho"), normal_echo} });
+				break;
+			}
 			if (myself == "") {
 				raise_global_ce("Cannot use postback: SELF_POST is not supported by Server");
 			}
@@ -2329,7 +2341,6 @@ int main(int argc, char* argv[]) {
 			}
 			else {
 				postback_set = true;
-				autolen = true;	// Since postback is used autolen must be used -- <script> will be inserted!
 				vector<string> exprs = split(current_code), curcmd, descmd;
 				content += "<script>\n";
 
@@ -2344,7 +2355,7 @@ int main(int argc, char* argv[]) {
 					if (curcmd[0] == "listen") {
 						descmd = split(curcmd[1], '.', 1);
 						postback_check(2);
-						onloadcall += "	document.getElementById('" + descmd[0] + "')." + descmd[1] + " = function() { mins_postback('" + descmd[0] + "." + descmd[1] + "'); };\n";
+						onloadcall += "	document.getElementById('" + descmd[0] + "')." + descmd[1] + " = function() { mins_postback('" + descmd[0] + "_" + descmd[1] + "'); };\n";
 					}
 					else if (curcmd[0] == "postback") {
 						descmd = split(curcmd[1], '.', 1);
@@ -2365,7 +2376,7 @@ int main(int argc, char* argv[]) {
 				onloadcall += "\n};";
 				onpostback += "\n	if (info != null) sending += '.field=\"' + info.toString() + '\"';\n	var xhr = new XMLHttpRequest();\n	new Promise(function(r,rj){";
 				if (my_bef_send.length()) onpostback += my_bef_send + "();";
-				onpostback += "r(null);}).then(function(arg){xhr.open('POST', '" + myself +"', false); xhr.send(sending); mins_dealing(xhr.responseText); })";
+				onpostback += "r(null);}).then(function(arg){xhr.open('POST', '" + myself +"', false); if (info != null) {xhr.setRequestHeader('MinServerPostBack','1');} xhr.send(sending); mins_dealing(xhr.responseText); })";
 				if (my_aft_send.length()) onpostback += ".then(function(arg){" + my_aft_send + "();})";
 
 				// Read Postback processor.
@@ -2384,12 +2395,6 @@ int main(int argc, char* argv[]) {
 					content += onpostback;
 
 					content += "</script>\n";
-				}
-				
-
-				// Also deal with postback in the field
-				if (is_postback == "1") {
-					// To be written... serial object into postback support, also send commands back.
 				}
 			}
 		}
