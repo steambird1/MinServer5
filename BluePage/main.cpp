@@ -2178,7 +2178,7 @@ int main(int argc, char* argv[]) {
 	in_debug = false;
 	no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 1.0\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.10a\nCompiled on ") + __DATE__ + " " + __TIME__;
+	string version_info = string("BluePage Interpreter\nVersion 2.0\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.10a\nCompiled on ") + __DATE__ + " " + __TIME__;
 #pragma endregion
 	// End
 
@@ -2322,12 +2322,14 @@ int main(int argc, char* argv[]) {
 			*/
 			autolen = true;	// Since postback is used autolen must be used -- <script> will be inserted!
 			string &myself = reqs["SELF_POST"];
+			while (myself.length() && myself[0] == '"') myself.erase(myself.begin());
+			while (myself.length() && myself[myself.length() - 1] == '"') myself.pop_back();
 			// Should be provided:
 			// Matches 'xhr.setRequestHeader('MinServerPostBack','1');' in the header.
 			string &is_postback = reqs["IS_POSTBACK"];	// To deal with postback, 0 or 1
 			string my_bef_send = "", my_aft_send = "";
 			// Also deal with postback in the field
-			if (is_postback == "1") {
+			if (is_postback == "\"1\"") {
 				// To be written... serial object into postback support, also send commands back.
 				// AND: ANYTHING AFTER IT will be ignored!!!
 				preRun("postback._inside_process", keep_env, reqs, { {string("bluecho"), normal_echo} });
@@ -2345,7 +2347,7 @@ int main(int argc, char* argv[]) {
 				content += "<script>\n";
 
 				// Add object-liked string for 'onpostback'.
-				string onloadcall = "window.onload = function() {\n", onpostback = "function mins_postback(info) {\n	var sending = \"__object$\\n\";\n";
+				string onloadcall = "window.onload = function() {\n", onpostback = "function mins_postback(info) {\n	var sending = \"__object$\\n.__type__=object\\n\";\n";
 
 				// Write JavaScript into content
 				for (size_t i = 0; i < exprs.size(); i++) {
@@ -2378,7 +2380,7 @@ int main(int argc, char* argv[]) {
 				if (my_bef_send.length()) onpostback += my_bef_send + "();";
 				onpostback += "r(null);}).then(function(arg){xhr.open('POST', '" + myself +"', false); if (info != null) {xhr.setRequestHeader('MinServerPostBack','1');} xhr.send(sending); mins_dealing(xhr.responseText); })";
 				if (my_aft_send.length()) onpostback += ".then(function(arg){" + my_aft_send + "();})";
-
+				onpostback += ";}";
 				// Read Postback processor.
 				FILE *fread = fopen("Postback.js", "r");
 				if (fread == NULL) {

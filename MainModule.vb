@@ -305,7 +305,7 @@ Module MainModule
             Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter & " --const:page_mode=0 " & IsDebug, AppWinStyle.Hide, True)
             ' Write response ...
         ElseIf MyExtension = page_interpreter Then
-            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --const:page_mode=1 " & IsDebug, AppWinStyle.Hide, True)
+            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --const:page_mode=1 --const:SELF_POST=" & SelfPost & " --const:IS_POSTBACK=" & IsPostBack & " " & IsDebug, AppWinStyle.Hide, True)
         Else
             ' Send the whole file
             ' To modify encoding and apply to everywhere!
