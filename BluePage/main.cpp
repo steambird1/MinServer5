@@ -2276,7 +2276,7 @@ int main(int argc, char* argv[]) {
 	keep_env.push();
 	size_t next_pos = 0, previous_pos = 0;
 	string current_code = "";
-	bool autolen = false;
+	bool autolen = false, end_of_postback = false;
 	while ((next_pos = code.find(blue_start, next_pos)) != string::npos) {
 		// Process [previous_pos, next_pos] as normal data
 		if (next_pos > previous_pos) content += code.substr(previous_pos, next_pos - previous_pos);
@@ -2333,6 +2333,7 @@ int main(int argc, char* argv[]) {
 				// To be written... serial object into postback support, also send commands back.
 				// AND: ANYTHING AFTER IT will be ignored!!!
 				preRun("postback._inside_process", keep_env, reqs, { {string("bluecho"), normal_echo} });
+				end_of_postback = true;
 				break;
 			}
 			if (myself == "") {
@@ -2408,7 +2409,7 @@ int main(int argc, char* argv[]) {
 	}
 	while (content.length() && (content[0] == '\n' || content[0] == '\r')) content.erase(content.begin());
 	while (header.length() && (header[header.length() - 1] == '\n' || header[header.length() - 1] == '\r')) header.pop_back();
-	content += code.substr(previous_pos);
+	if (!end_of_postback) content += code.substr(previous_pos);
 	FILE *fout = fopen(target_path.c_str(), "w");
 	fprintf(fout, "%s\n", header.c_str());
 	if (autolen) {
