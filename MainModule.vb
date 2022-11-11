@@ -46,6 +46,8 @@ Module MainModule
                 Console.Out.WriteLine()
                 Console.Out.Write("With BlueBetter and BluePage interpreter")
                 Console.Out.WriteLine()
+                Console.Out.Write("Version 1.5")
+                Console.Out.WriteLine()
                 End
             End If
             Dim PortPosition As Integer = i.IndexOf("--port:")
