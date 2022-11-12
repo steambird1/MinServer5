@@ -146,8 +146,8 @@ class postback:
 		sender.write ("@control "+ca+"="+(postback._strify value))
 	function add_job js_func js_para:
 		sender.write ("@job "+js_func+"="+(postback._strify value))
-	function add_timer name interval blue_call blue_para:
-		sender.write ("@timer "+name+"="+interval+","+blue_call+","+(postback._strify blue_para))
+	function add_timer name interval blue_call:
+		sender.write ("@timer "+name+"="+interval+","+blue_call)
 	function remove_timer name:
 		sender.write ("@timer_remove "+name+"=REMOVE")
 	function _inside_process:
