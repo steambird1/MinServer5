@@ -131,7 +131,7 @@ class postback:
 	function set control attrib value:
 		set ca=control+"."+attrib
 		set postback.data.document:ca=value
-		sender.write (ca+"="+value)
+		sender.write ("@control "+ca+"="+value)
 	function _inside_process:
 		debugger
 		if receiver.ispost:
