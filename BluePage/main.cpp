@@ -2348,7 +2348,7 @@ int main(int argc, char* argv[]) {
 				content += "<script>\n";
 
 				// Add object-liked string for 'onpostback'.
-				string onloadcall = "window.onload = function() {\n", onpostback = "function mins_postback(info) {\n	var sending = \"__object$\\n.__type__=object\\n\";\n";
+				string onloadcall = "window.onload = function() {\n", onpostback = "function mins_postback(info,para) {\n	var sending = \"__object$\\n.__type__=object\\n\";\n";
 
 				// Write JavaScript into content
 				for (size_t i = 0; i < exprs.size(); i++) {
@@ -2380,7 +2380,7 @@ int main(int argc, char* argv[]) {
 				}
 
 				onloadcall += "\n};";
-				onpostback += "\n	if (info != null) sending += '.field=\"' + info.toString() + '\"';\n	var xhr = new XMLHttpRequest();\n	new Promise(function(r,rj){";
+				onpostback += "\n	if (info != null) sending += '.field=\"' + info.toString() + '\"';\n	if (para != null) sending += '.parameter=\"' + para.toString() + '\"';\n	var xhr = new XMLHttpRequest();\n	new Promise(function(r,rj){";
 				if (my_bef_send.length()) onpostback += my_bef_send + "();";
 				onpostback += "r(null);}).then(function(arg){xhr.open('POST', '" + myself +"', false); if (info != null) {xhr.setRequestHeader('MinServerPostBack','1');} xhr.send(sending); mins_dealing(xhr.responseText); })";
 				if (my_aft_send.length()) onpostback += ".then(function(arg){" + my_aft_send + "();})";
