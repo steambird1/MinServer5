@@ -2363,7 +2363,7 @@ int main(int argc, char* argv[]) {
 					else if (curcmd[0] == "postback") {
 						descmd = split(curcmd[1], '.', 1);
 						postback_check(2);
-						onpostback += "	sending += '.document." + descmd[0] + "." + descmd[1] + "=\"' + document.getElementById('" + descmd[0] + "')." + descmd[1] + ".toString() + '\"\\n';\n";
+						onpostback += "	sending += '.document." + descmd[0] + "." + descmd[1] + "=\"' + mins_format(document.getElementById('" + descmd[0] + "')." + descmd[1] + ".toString()) + '\"\\n';\n";
 					}
 					else if (curcmd[0] == "before_send") {
 						my_bef_send = curcmd[1];
