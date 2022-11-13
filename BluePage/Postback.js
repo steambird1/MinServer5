@@ -16,6 +16,10 @@ function mins_panic(data) {
     document.write("<h1>Postback Error</h1><br /><p>The page has experienced a fatal PostBack error. Details:</p><p>"+data+"</p><p>Contact the owner of website for help.");   
 }
 
+function mins_format(str) {
+    return str.replaceAll('"', '\\"');   
+}
+
 function mins_dealing(content) {
     try {
         var spls = content.split("\n");
