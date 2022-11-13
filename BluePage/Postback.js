@@ -21,7 +21,7 @@ function mins_panic(data) {
 }
 
 function mins_format(str) {
-    return str.replaceAll('"', '\\"').replaceAll('\\', '\\\\');   
+    return str.replaceAll('\\', '\\\\').replaceAll('"', '\\"');   
 }
 
 function mins_dealing(content) {
