@@ -1136,7 +1136,7 @@ void generateClass(string variable, string classname, varmap &myenv, bool run_in
 // This 'run' will skip ALL class and function declarations.
 // Provided environment should be pushed.
 intValue run(string code, varmap &myenv, string fname) {
-	vector<string> codestream = split(code, '\n', -1, '"', '\\');
+	vector<string> codestream = split(code, '\n', -1, '"', '\\', true);
 	// Process codestream before run
 	for (auto &cep : codestream) {
 		while (cep.length() && haveContent(cep) && cep[cep.length() - 1] == '\t') cep.pop_back();
@@ -1994,7 +1994,7 @@ intValue preRun(string code, varmap &myenv, map<string, string> required_global 
 	
 	// End
 
-	vector<string> sc = split(code);
+	vector<string> sc = split(code, '\n', -1, '"', '\\', true);
 	codestream.insert(codestream.end(),sc.begin(),sc.end());
 	string curclass = "";					// Will append '.'
 	string curfun = "", cfname = "", cfargs = "";
@@ -2380,7 +2380,7 @@ int main(int argc, char* argv[]) {
 				}
 
 				onloadcall += "\n};";
-				onpostback += "\n	if (info != null) sending += '.field=\"' + mins_format(info.toString()) + '\"';\n	if (para != null) sending += '.parameter=\"' + mins_format(para.toString()) + '\"';\n	var xhr = new XMLHttpRequest();\n	new Promise(function(r,rj){";
+				onpostback += "\n	if (info != null) sending += '.field=\"' + mins_format(info.toString()) + '\"';\n	if (para != null) sending += '\\n.parameter=\"' + mins_format(para.toString()) + '\"';\n	var xhr = new XMLHttpRequest();\n	new Promise(function(r,rj){";
 				if (my_bef_send.length()) onpostback += my_bef_send + "();";
 				onpostback += "r(null);}).then(function(arg){xhr.open('POST', '" + myself +"', false); if (info != null) {xhr.setRequestHeader('MinServerPostBack','1');} xhr.send(sending); mins_dealing(xhr.responseText); })";
 				if (my_aft_send.length()) onpostback += ".then(function(arg){" + my_aft_send + "();})";

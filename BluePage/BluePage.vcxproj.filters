@@ -29,8 +29,6 @@
     <None Include="BluePage.blue">
       <Filter>资源文件</Filter>
     </None>
-    <None Include="Postback.js">
-      <Filter>资源文件</Filter>
-    </None>
+    <None Include="Postback.js" />
   </ItemGroup>
 </Project>

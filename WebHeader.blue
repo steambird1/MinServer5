@@ -126,7 +126,8 @@ class __postback_data:
 class postback:
 	# document and field are reserved!
 	shared class
-	function _strify data:
+	function _strify obj:
+		set data=str obj
 		set l=len data
 		set res=""
 		for i=0~l:
@@ -159,6 +160,7 @@ class postback:
 	function remove_timer name:
 		sender.write ("@timer_remove "+name+"=REMOVE")
 	function _inside_process:
+		debugger
 		if receiver.ispost:
 			raise "Incorrect postback form"
 		set s=object receiver.content.open
