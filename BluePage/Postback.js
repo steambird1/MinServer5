@@ -1,5 +1,9 @@
 var mins_timers = {};
 
+function mins_remove_cr(str) {
+    return str.replaceAll("\r","");
+}
+
 /*
 ^n LF
 ^^ ^
@@ -35,9 +39,9 @@ function mins_dealing(content) {
                     window[curs[0]](mins_destrify(curs[1]));
                     break;
                 case "@timer":
-                    var data = curs[1].split(",", 2);
+                    var data = curs[1].split(",", 3);
                     mins_timers[curs[0]] = setInterval(function() {
-                        mins_postback(data[1].trim());
+                        mins_postback(data[1].trim(), mins_destrify(mins_remove_cr(data[2])));
                     }, parseInt(data[0]));
                     break;
                 case "@timer_remove":
