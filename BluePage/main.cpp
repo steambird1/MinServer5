@@ -1136,7 +1136,7 @@ void generateClass(string variable, string classname, varmap &myenv, bool run_in
 // This 'run' will skip ALL class and function declarations.
 // Provided environment should be pushed.
 intValue run(string code, varmap &myenv, string fname) {
-	vector<string> codestream = split(code);
+	vector<string> codestream = split(code, '\n', -1, '"', '\\');
 	// Process codestream before run
 	for (auto &cep : codestream) {
 		while (cep.length() && haveContent(cep) && cep[cep.length() - 1] == '\t') cep.pop_back();
