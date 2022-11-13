@@ -130,13 +130,21 @@ class postback:
 		set l=len data
 		set res=""
 		for i=0~l:
-			set chr=data#i
-			if chr="^":
+			set ch=data#i
+			if ch="^":
 				set res=res+"^^"
-			elif chr=LF:
+			elif ch=LF:
 				set res=res+"^n"
+			elif ch=".":
+				set res=res+"^d"
+			elif ch=",":
+				set res=res+"^c"
+			elif ch="=":
+				set res=res+"^e"
+			elif ch=" ":
+				set res=res+"^s"
 			else:
-				set res=res+chr
+				set res=res+ch
 		return res
 	function get control attrib:
 		return postback.data.document:(control+"."+attrib)
@@ -151,7 +159,6 @@ class postback:
 	function remove_timer name:
 		sender.write ("@timer_remove "+name+"=REMOVE")
 	function _inside_process:
-		debugger
 		if receiver.ispost:
 			raise "Incorrect postback form"
 		set s=object receiver.content.open
