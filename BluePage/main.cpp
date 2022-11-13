@@ -2371,6 +2371,9 @@ int main(int argc, char* argv[]) {
 					else if (curcmd[0] == "after_send") {
 						my_aft_send = curcmd[1];
 					}
+					else if (curcmd[0] == "on_load") {
+						onloadcall += "	mins_postback('" + curcmd[1] + "');\n";	
+					}
 					else {
 						raise_global_ce("Bad postback description");
 					}
