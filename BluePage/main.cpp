@@ -1039,11 +1039,6 @@ intValue calcute(string expr, varmap &vm) {
 				else {
 					if (operand.length()) {
 						if (expr[i] == ':') {
-							// Must be a raw, existing, indexable thing.
-							if (!vm.count(operand)) {
-								raise_gv_ce(string("Error: not a variable: ") + operand);
-								return null;	// Bad expression!
-							}
 							val.push(intValue(operand));
 						}
 						else {
@@ -2408,7 +2403,7 @@ int main(int argc, char* argv[]) {
 			string &is_postback = reqs["IS_POSTBACK"].str;	// To deal with postback, 0 or 1
 			string my_bef_send = "", my_aft_send = "";
 			// Also deal with postback in the field
-			if (is_postback == "\"1\"") {
+			if (is_postback == "1") {
 				// To be written... serial object into postback support, also send commands back.
 				// AND: ANYTHING AFTER IT will be ignored!!!
 				preRun("postback._inside_process", keep_env, reqs, { {string("bluecho"), normal_echo} });
