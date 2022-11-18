@@ -2232,9 +2232,9 @@ int main(int argc, char* argv[]) {
 #pragma region Compiler Test Option
 #if _DEBUG
 	// Warning: When testing VBWeb can't use it
-	string code = "", file = "test1.bp";
-	target_path = "test1.html";
-	in_debug = true;
+	string code = "", file = "";
+	target_path = "";
+	in_debug = false;
 	no_lib = false;
 
 	if (code.length()) {
@@ -2274,7 +2274,7 @@ int main(int argc, char* argv[]) {
 	map<string, intValue> reqs = { {"FILE_NAME", intValue(file)}, {"__BLUEPAGE__", intValue(1)} };
 	map<string, bcaller> callers;	// Insert your requirements here
 
-#if _DEBUG
+#if 0
 	// For postback testers:
 	reqs["IS_POSTBACK"] = intValue(0);
 	reqs["SELF_POST"] = intValue("/ExampleTarget");
