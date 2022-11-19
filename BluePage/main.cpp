@@ -26,6 +26,12 @@ int __spec = 0;
 // Open if not use bmain.blue
 bool no_lib = false;
 
+typedef long long							long64;
+typedef unsigned long long					ulong64;
+
+// For debug propose only:
+//string main_f_env = "";
+
 // Pre declare
 class varmap;
 struct intValue;
@@ -219,7 +225,7 @@ struct intValue {
 		return false;
 	}
 
-} null;
+} null, trash;	// trash: Return if incorrect varmap[] is called.;
 
 #define raise_ce(description) raiseError(null, myenv, fname, execptr, __LINE__, description)
 #define raise_varmap_ce(description) raiseError(null, *this, "Runtime", 0, __LINE__, description)
@@ -279,6 +285,30 @@ public:
 	typedef vector<single_mapper>::reverse_iterator			vit;
 	typedef single_mapper::iterator							mit;
 
+	struct referrer {
+
+		// Not recommended to use the default constructor,
+		// since it may crash!
+		referrer(string og = "", varmap *src = nullptr) : origin_name(og), source(src) {
+
+		}
+
+		intValue& getValue(string dot_member = "") {
+			string expand = "";
+			if (dot_member.length()) expand = string(".") + dot_member;
+			return this->source->operator[](origin_name + expand);
+		}
+
+		bool count(string dot_member = "") {
+			string expand = "";
+			if (dot_member.length()) expand = string(".") + dot_member;
+			return this->source->count(origin_name + expand);
+		}
+
+		string origin_name;
+		varmap *source;
+	};
+
 	varmap() {
 
 	}
@@ -289,23 +319,28 @@ public:
 		if (vs.size()) vs.pop_back();
 	}
 	bool count(string key) {
-		if (key == "this") {
-			if (this_name.length() && this_source != NULL) return true;
-			else return false;
-		}
-		else if (beginWith(key, "this.")) {
-			vector<string> s = split(key, '.', 1);
-			return this_source->count(this_name + "." + s[1]);
-		}
-		else {
-			for (vit i = vs.rbegin(); i != vs.rend(); i++) {
-				if (i->count(key)) {
-					return true;
-				}
+		if (!key.length()) return false;
+		vector<string> spls = split(key, '.', 1);
+		string dm = "";
+		if (spls.size() >= 2) dm = spls[1];
+		if (have_referrer(spls[0])) return ref[spls[0]].count(dm);
+		for (vit i = vs.rbegin(); i != vs.rend(); i++) {
+			if (i->count(key)) {
+				return true;
 			}
-			if (glob_vs.count(key)) return true;
-			return false;
 		}
+		if (glob_vs.count(key)) return true;
+		return false;
+	}
+	void set_referrer(string here_name, string origin_name, varmap *origin) {
+		if (here_name == "" || origin_name == "" || origin == nullptr) return;
+		ref[here_name] = referrer(origin_name, origin);
+	}
+	bool have_referrer(string here_name) {
+		return ref.count(here_name);
+	}
+	void clean_referrer(string here_name) {
+		if (have_referrer(here_name)) ref.erase(here_name);
 	}
 	// If return object serial, DON'T MODIFY IT !
 	value_type& operator[](string key) {
@@ -321,61 +356,68 @@ public:
 		if (key != "__is_sharing__" && this->operator[]("__is_sharing__").str == "1") {
 			is_sharing = true;
 		}
-		if (key == "this") {
+		if (key == "this" || (key.substr(0, 5) == "this.")) {
 			// Must be class
-			if (is_sharing || (this_source == NULL)) {
-				raise_varmap_ce("Error: attempt to call 'this' in a shared function or non-class function");
-			}
-			return (*this_source)[this_name] = this_source->serial(this_name);
-		}
-		else if (key.substr(0, 5) == "this.") {
-			if (is_sharing || (this_source == NULL)) {
+			if (is_sharing || (!have_referrer("this"))) {
+#if _DEBUG
 				curlout();
-				raise_varmap_ce("Error: attempt to call 'this' in a shared function or non-class function");
-				endout();
-			}
-			vector<string> s = split(key, '.', 1);
-			return (*this_source)[this_name + "." + s[1]];
-		}
-		else {
-			for (vit i = vs.rbegin(); i != vs.rend(); i++) {
-				if (i->count(key)) {
-					if (unserial.count((*i)[key + ".__type__"].str)) {
-						return ((*i))[key];
-					}
-					else {
-						return ((*i))[key] = serial(key);
-					}
+				cout << "Current expression: " << key << endl;
+				cout << "Current referrer: " << endl;
+				for (auto &i : this->ref) {
+					cout << i.first << " = " << i.second.origin_name << " at " << ulong64(i.second.source) << endl;
 				}
+				endout();
+#endif
+				raise_varmap_ce("Error: attempt to call 'this' in a shared function or non-class function");
+				return trash;
 			}
+		}
 
-			if (glob_vs.count(key)) {
-				if (unserial.count(glob_vs[key + ".__type__"].str)) {
-					return glob_vs[key];
+		// Search for referrer
+		vector<string> spl = split(key, '.', 1);
+		string dm = "";
+		if (spl.size() >= 2) dm = spl[1];
+		if (have_referrer(spl[0])) {
+			return this->ref[spl[0]].getValue(dm);
+		}
+
+		for (vit i = vs.rbegin(); i != vs.rend(); i++) {
+			if (i->count(key)) {
+				if (unserial.count((*i)[key + ".__type__"].str)) {
+					return ((*i))[key];
 				}
 				else {
-					return glob_vs[key] = serial(key);
+					return ((*i))[key] = serial(key);
 				}
 			}
-			if (key.find('.') != string::npos) {
-				// Must in same layer
-				vector<string> la = split(key, '.', 1);
-				for (vit i = vs.rbegin(); i != vs.rend(); i++) {
-					if (i->count(la[0])) {
-						(*i)[key] = null;
-						return (*i)[key];
-					}
-				}
-				if (glob_vs.count(la[0])) {
-					glob_vs[key] = null;
-					return glob_vs[key];
-				}
+		}
+
+		if (glob_vs.count(key)) {
+			if (unserial.count(glob_vs[key + ".__type__"].str)) {
+				return glob_vs[key];
 			}
 			else {
-				if (!vs[vs.size() - 1].count(key)) vs[vs.size() - 1][key] = null;
+				return glob_vs[key] = serial(key);
 			}
-			return vs[vs.size() - 1][key];
 		}
+		if (key.find('.') != string::npos) {
+			// Must in same layer
+			vector<string> la = split(key, '.', 1);
+			for (vit i = vs.rbegin(); i != vs.rend(); i++) {
+				if (i->count(la[0])) {
+					(*i)[key] = null;
+					return (*i)[key];
+				}
+			}
+			if (glob_vs.count(la[0])) {
+				glob_vs[key] = null;
+				return glob_vs[key];
+			}
+		}
+		else {
+			if (!vs[vs.size() - 1].count(key)) vs[vs.size() - 1][key] = null;
+		}
+		return vs[vs.size() - 1][key];
 
 	}
 	value_type serial(string name) {
@@ -414,33 +456,31 @@ public:
 		(*this)[name] = null;
 	}
 	void tree_clean(string name) {
-		if (name == "this") {
-			this->this_source = NULL;
-			this->this_name = "";
+		if (have_referrer(name)) {
+			this->clean_referrer(name);
+			return;
 		}
-		else if (beginWith(name, "this.")) {
-			vector<string> spl = split(name, '.', 1);
-			if (spl.size() < 2) return;
-			this->this_source->tree_clean(this->this_name + "." + spl[1]);
-		}
-		else {
-			// Clean in my tree.
-			for (auto i = vs.rbegin(); i != vs.rend(); i++) {
-				if (i->count(name)) {
-					(*i)[name] = null;
-					vector<string> to_delete;
-					for (auto &j : (*i)) {
-						if (beginWith(j.first, name + ".")) {
-							// Delete!
-							to_delete.push_back(j.first);
-						}
+		// Clean in my tree.
+		for (auto i = vs.rbegin(); i != vs.rend(); i++) {
+			if (i->count(name)) {
+				(*i)[name] = null;
+				vector<string> to_delete;
+				for (auto &j : (*i)) {
+					if (beginWith(j.first, name + ".")) {
+						// Delete!
+						to_delete.push_back(j.first);
 					}
-					for (auto &j : to_delete) {
-						i->erase(j);
-					}
+				}
+				for (auto &j : to_delete) {
+					i->erase(j);
 				}
 			}
 		}
+	}
+	void transform_referrer_from(string here_name, varmap &transform_from, string transform_from_referrer) {
+		if (!transform_from.have_referrer(transform_from_referrer)) return;
+		auto &refs = transform_from.ref[transform_from_referrer];
+		this->ref[here_name] = refs;
 	}
 	static void set_global(string key, value_type value) {
 		glob_vs[key] = value;
@@ -452,13 +492,12 @@ public:
 		vs[vs.size() - 1][key] = null;
 	}
 	void set_this(varmap *source, string name) {
-		this_name = name;
-		this_source = source;
+		set_referrer("this", name, source);
 	}
+	// This function is deprecated.
 	void dump() {
 		specialout();
 		cout << "*** VARMAP DUMP ***" << endl;
-		cout << "this pointer: " << this_name << endl << "partial:" << endl;
 		for (vit i = vs.rbegin(); i != vs.rend(); i++) {
 			for (mit j = i->begin(); j != i->end(); j++) {
 				cout << j->first << " = ";
@@ -493,9 +532,10 @@ public:
 		}
 	}
 
-	string															this_name = "";
-	varmap															*this_source;
-	// Where 'this' points. use '.'
+	//string															this_name = "";
+	//varmap															*this_source;
+		// Where 'this' points. use '.'
+
 	const string mymagic = "__object$\n";
 private:
 	vector<value_type> get_member_from(single_mapper &obj, string name, bool force_show = false) {
@@ -546,12 +586,12 @@ private:
 	}
 	const set<string> unserial = { "", "function", "class", "null" };
 
+	// 'this' is a special reference.
+	map<string, referrer>													ref;
 	vector<map<string, value_type> >										vs;
 	// Save evalable thing, like "" for string
 	static map<string, value_type>										glob_vs;
 };
-
-map<string, varmap::value_type> varmap::glob_vs;
 
 void raiseError(intValue raiseValue, varmap &myenv, string source_function, size_t source_line, double error_id, string error_desc) {
 	if (source_function == "__error_handler__") {
@@ -717,7 +757,7 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 
 			varmap nvm;
 			nvm.push();
-			nvm.set_this(vm.this_source, vm.this_name);
+			nvm.transform_referrer_from("this", vm, "this");
 			if (spl[0].find('.') != string::npos && (!set_no_this)) {
 				vector<string> xspl = split(spl[0], '.');
 				nvm.set_this(&vm, xspl[0]);
@@ -770,6 +810,23 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 					return null;
 				}
 				for (size_t i = 0; i < arg.size(); i++) {
+					// Special character '^' will pass the referer!
+					if (arg[i].length() && arg[i][0] == '^') {
+						string rname = arg[i].substr(1);
+						if (vm.have_referrer(rname)) {
+							nvm.transform_referrer_from(argname[i], vm, rname);
+							continue;
+						}
+						else if (vm.count(rname)) {
+							nvm.set_referrer(argname[i], rname, &vm);
+							continue;
+						}
+						else {
+							// Continue processor and attempt to see it as normal formula
+							arg[i].erase(arg[i].begin());
+							raise_gv_ce(string("Warning: Not an acceptable referrer: ") + arg[i]);
+						}
+					}
 					nvm[argname[i]] = calcute(arg[i], vm);
 				}
 			}
@@ -800,6 +857,8 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 	}
 }
 
+map<string, varmap::value_type> varmap::glob_vs;
+
 int priority(char op) {
 	switch (op) {
 	case ')': case ':':	// Must make sure ':' has the most priority
@@ -827,9 +886,6 @@ int priority(char op) {
 		return -1;
 	}
 }
-
-typedef long long							long64;
-typedef unsigned long long					ulong64;
 
 // Please notice special meanings.
 intValue primary_calcute(intValue first, char op, intValue second, varmap &vm) {
@@ -1355,8 +1411,16 @@ intValue run(string code, varmap &myenv, string fname) {
 				}
 				myenv[codexec2[0]] = intValue(int(myenv.count(codexec3[1])));
 			}
-			else if (codexec2[1] == "clear") {
+			else if (codexec2[1] == "clear" || codexec2[1] == "null") {
 				myenv.tree_clean(codexec2[0]);
+			}
+			else if (beginWith(codexec2[1], "referof ")) {
+				vector<string> codexec3 = split(codexec2[1], ' ', 1);
+				parameter_check3(2, "Operator number");
+				if (codexec3[1].find(':') != string::npos) {
+					codexec3[1] = curexp(codexec3[1], myenv);
+				}
+				myenv.set_referrer(codexec2[0], codexec3[1], &myenv);
 			}
 #pragma region Internal Calcutions
 			else if (codexec2[1] == "__input") {
