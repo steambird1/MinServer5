@@ -386,14 +386,25 @@ public:
 		}
 
 		// Search for referrer
-		auto gd = get_dot(key);
-		if (have_referrer(gd.first)) {
-			return this->ref[gd.first].getValue(gd.second);
+		// Check where the direction is OK.
+		vector<size_t> cutters;
+		size_t res = 0;
+		while ((res = key.find('.', res)) != string::npos) {
+			cutters.push_back(res);
+			res++;		// Or deadloop here
 		}
-		else if (have_referrer(key)) {
-			return this->ref[key].getValue();
-		}// Or for whole directly.
+		for (int it = cutters.size() - 1; it >= 0; it--) {
+			size_t &i = cutters[it];
+			string predot = key.substr(0, i);
+			string incdot = key.substr(i + 1);	// '.' is NOT included !!
+			if (have_referrer(predot)) {
+				return this->ref[predot].getValue(incdot);
+			}
+		}
 
+		if (have_referrer(key)) {
+			return this->ref[key].getValue();
+		}
 
 		for (vit i = vs.rbegin(); i != vs.rend(); i++) {
 			if (i->count(key)) {
@@ -745,19 +756,6 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 			if (spl.size() && spl[0].length()) {
 				// Internal expressions here ...
 
-				auto spl_check = [&](size_t require = 2) {
-					if (spl.size() < require) {
-						raise_gv_ce("Parameter missing");
-						return intValue(0);
-					}
-				};
-
-				auto auto_curexp = [&]() {
-					if (spl[1].find(':') != string::npos) {
-						spl[1] = curexp(spl[1], vm);
-					}
-				};
-
 				if (spl[0][0] == '$') {
 					spl[0] = vm[spl[0].substr(1)].str;
 				}
@@ -769,9 +767,24 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 					return tvm["__temp_new"];
 				}
 				else if (spl[0] == "ishave") {
-					spl_check(2);
-					auto_curexp();
-					return vm.count(spl[1]);
+					if (spl.size() < 2) {
+						raise_gv_ce("Parameter missing");
+						return intValue(0);
+					}
+					if (spl[1].find(':') != string::npos) {
+						spl[1] = curexp(spl[1], vm);
+					}
+					return intValue(vm.count(spl[1]));
+				}
+				else if (spl[0] == "isref") {
+					if (spl.size() < 2) {
+						raise_gv_ce("Parameter missing");
+						return intValue(0);
+					}
+					if (spl[1].find(':') != string::npos) {
+						spl[1] = curexp(spl[1], vm);
+					}
+					return intValue(vm.have_referrer(spl[1]));
 				}
 			}
 		}
@@ -1500,7 +1513,14 @@ intValue run(string code, varmap &myenv, string fname) {
 					myenv.transform_referrer_from(codexec2[0], myenv, codexec3[1]);
 				}
 				else {
-					myenv[codexec2[0]] = myenv[codexec3[1]];
+					//myenv[codexec2[0]] = myenv[codexec3[1]];
+					auto &res = myenv[codexec3[1]];
+					if (res.isObject) {
+						myenv.deserial(codexec2[0], res.str);
+					}
+					else {
+						myenv[codexec2[0]] = res;
+					}
 				}
 			}
 #pragma region Internal Calcutions
@@ -2401,7 +2421,7 @@ int main(int argc, char* argv[]) {
 	in_debug = false;
 	no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 3.1\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.13\nCompiled on ") + __DATE__ + " " + __TIME__;
+	string version_info = string("BluePage Interpreter\nVersion 3.1a\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.13a\nCompiled on ") + __DATE__ + " " + __TIME__;
 #pragma endregion
 	// End
 
