@@ -626,6 +626,18 @@ private:
 				tmp += string(".") + spl[1] + "=" + j.second.unformat() + "\n";
 			}
 		}
+		// Deep copy in default!
+		for (auto &j : this->ref) {
+			if (beginWith(j.first, name + ".")) {
+				vector<string> spl = { "","" };
+				size_t fl = j.first.find('.', j.first.find(name) + name.length());
+				if (fl == string::npos) continue;
+				spl[0] = j.first.substr(0, fl);
+				if (spl[0] != name) continue;
+				spl[1] = j.first.substr(fl + 1);
+				tmp += string(".") + spl[1] + "=" + j.second.getValue().unformat() + "\n";
+			}
+		}
 		return intValue(tmp);
 	}
 	const set<string> unserial = { "", "function", "class", "null" };
@@ -2421,7 +2433,7 @@ int main(int argc, char* argv[]) {
 	in_debug = false;
 	no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 3.1a\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.13a\nCompiled on ") + __DATE__ + " " + __TIME__;
+	string version_info = string("BluePage Interpreter\nVersion 3.1b\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.13b\nCompiled on ") + __DATE__ + " " + __TIME__;
 #pragma endregion
 	// End
 
