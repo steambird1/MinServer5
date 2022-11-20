@@ -39,6 +39,7 @@ intValue run(string code, varmap &myenv, string fname);
 intValue calcute(string expr, varmap &vm);
 void raiseError(intValue raiseValue, varmap &myenv, string source_function = "Unknown source", size_t source_line = 0, double error_id = 0, string error_desc = "");
 intValue getValue(string single_expr, varmap &vm, bool save_quote = false);
+void generateClass(string variable, string classname, varmap &myenv, bool run_init = true);
 
 HANDLE stdouth;
 DWORD precolor = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN, nowcolor = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN;
@@ -148,6 +149,7 @@ struct intValue {
 	string								str;
 	bool								isNull = false;
 	bool								isNumeric = false;
+	bool								isObject = false;
 
 	intValue negative() {
 		if (this->isNumeric) {
@@ -387,7 +389,10 @@ public:
 					return ((*i))[key];
 				}
 				else {
-					return ((*i))[key] = serial(key);
+					auto se = serial(key);
+					intValue res = se;
+					res.isObject = true;
+					return ((*i))[key] = res;
 				}
 			}
 		}
@@ -397,7 +402,10 @@ public:
 				return glob_vs[key];
 			}
 			else {
-				return glob_vs[key] = serial(key);
+				auto se = serial(key);
+				intValue res = se;
+				res.isObject = true;
+				return glob_vs[key] = res;
 			}
 		}
 		if (key.find('.') != string::npos) {
@@ -701,11 +709,17 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 	}
 	else {
 		vector<string> spl = split(single_expr, ' ', 1);
-		// Neither string nor number, variable test
-		//vector<string> dotspl = split(spl[0], '.', 1);
-		// Must find last actually.
-		if (spl.size() && spl[0].length() && spl[0][0] == '$') {
-			spl[0] = vm[spl[0].substr(1)].str;
+		if (spl.size() && spl[0].length()) {
+			if (spl[0][0] == '$') {
+				spl[0] = vm[spl[0].substr(1)].str;
+			}
+			else if (spl[0] == "new") {
+				// Object creation
+				varmap tvm;
+				tvm.push();
+				generateClass("__temp_new", spl[1], tvm);
+				return tvm["__temp_new"];
+			}
 		}
 		vector<string> dotspl = { "","" };
 		size_t fl = spl[0].find_last_of('.');
@@ -827,7 +841,14 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 							raise_gv_ce(string("Warning: Not an acceptable referrer: ") + arg[i]);
 						}
 					}
-					nvm[argname[i]] = calcute(arg[i], vm);
+					auto re = calcute(arg[i], vm);
+					if (re.isObject) {
+						// Passing ByVal, automaticly deserial
+						nvm.deserial(argname[i], re.str);
+					}
+					else {
+						nvm[argname[i]] = re;
+					}
 				}
 			}
 			if (set_this.length()) nvm.set_this(&vm, set_this);
@@ -1228,7 +1249,7 @@ size_t getLength(int fid) {
 	return res;
 }
 
-void generateClass(string variable, string classname, varmap &myenv, bool run_init = true) {
+void generateClass(string variable, string classname, varmap &myenv, bool run_init) {
 	myenv[variable] = null;
 	myenv[variable + ".__type__"] = classname;
 	if (run_init) {
