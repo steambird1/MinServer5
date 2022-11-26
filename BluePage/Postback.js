@@ -1,19 +1,11 @@
 var mins_timers = {};
 
 function mins_remove_cr(str) {
-    return str.replaceAll("\r","");
+    return str.replace(/\r/g,"");
 }
 
-/*
-^n LF
-^^ ^
-^d .
-^c ,
-^e =
-^s SPACE
-*/
 function mins_destrify(proceed_str) {
-    return proceed_str.replaceAll("^n","\n").replaceAll("^^","^").replaceAll("^d",".").replaceAll("^c",",").replaceAll("^e","=").replaceAll("^s"," ");
+    return proceed_str.replace(/\^n/g,"\n").replace(/\^\^/g,"^").replace(/\^d/g,".").replace(/\^c/g,",").replace(/\^e/g,"=").replace(/\^s/g," ");
 }
 
 function mins_panic(data) {
@@ -21,14 +13,15 @@ function mins_panic(data) {
 }
 
 function mins_format(str) {
-    return str.replaceAll('\\', '\\\\').replaceAll('"', '\\"');   
+    return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"');   
 }
 
 function mins_dealing(content) {
-    try {
-        var spls = content.split("\n");
-        for (let i = 0; i < spls.length; i++) {
-            var orderer = spls[i].split(" ", 2);
+    var spls = content.split("\n");
+    for (let i = 0; i < spls.length; i++) {
+        try {
+            var spld = spls[i].trimLeft();
+            var orderer = spld.split(" ", 2);
             var curs = orderer[1].split("=", 2);
             switch (orderer[0]) {
                 case "@control":
@@ -40,18 +33,16 @@ function mins_dealing(content) {
                     break;
                 case "@timer":
                     var data = curs[1].split(",", 3);
-                    mins_timers[curs[0]] = setInterval(function() {
+                    mins_timers[curs[0]] = setInterval(function () {
                         mins_postback(data[1].trim(), mins_destrify(mins_remove_cr(data[2])));
                     }, parseInt(data[0]));
                     break;
                 case "@timer_remove":
                     clearInterval(mins_timers[curs[0]]);
                     break;
-                default:
-                    mins_panic("Bad postback command: "+spls[i]);
             }
+        } catch (err) {
+
         }
-    } catch (err) {
-        // TypeError?
     }
 }
