@@ -41,6 +41,7 @@ void raiseError(intValue raiseValue, varmap &myenv, string source_function = "Un
 intValue getValue(string single_expr, varmap &vm, bool save_quote = false);
 void generateClass(string variable, string classname, varmap &myenv, bool run_init = true);
 string curexp(string exp, varmap &myenv);
+string auto_curexp(string exp, varmap &myenv);
 
 HANDLE stdouth;
 DWORD precolor = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN, nowcolor = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN;
@@ -1293,7 +1294,7 @@ string curexp(string exp, varmap &myenv) {
 	return dasher[0] + "." + final.str;
 }
 
-inline string auto_curexp(string exp, varmap &myenv) {
+string auto_curexp(string exp, varmap &myenv) {
 	if (exp.find(':') != string::npos) {
 		return curexp(exp, myenv);
 	}
