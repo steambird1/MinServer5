@@ -145,14 +145,11 @@ function typeof obj:
 	return obj.__type__
 
 function inheritanceof first second:
-	set fo=object first
-	set so=object second
-	set temp=__inheritanceof fo,so
+	set temp=__inheritanceof first,second
 	return temp
 
 function membersof obj:
-	set curo=object obj
-	set temp=__membersof curo
+	set temp=__membersof obj
 	return temp
 
 function isnull obj:
@@ -299,3 +296,10 @@ function find_last origin finder:
 		else:
 			set matcher=tmp
 	return -1
+
+function make_list ...obj:
+	return obj
+
+function ctype typename object:
+	set object.__type__=typename
+	return object

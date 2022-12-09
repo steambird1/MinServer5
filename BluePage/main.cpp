@@ -614,6 +614,7 @@ private:
 	}
 	intValue serial_from(single_mapper &obj, string name) {
 		string tmp = mymagic;
+		const static string sdot = ".";
 		for (auto &j : obj) {
 			if (beginWith(j.first, name + ".")) {
 				//vector<string> spl = split(j.first, '.', 1);
@@ -635,7 +636,26 @@ private:
 				spl[0] = j.first.substr(0, fl);
 				if (spl[0] != name) continue;
 				spl[1] = j.first.substr(fl + 1);
-				tmp += string(".") + spl[1] + "=" + j.second.getValue().unformat() + "\n";
+				auto val = j.second.getValue();
+				if (unserial.count(j.second.getValue("__type__").str)) {
+					// Simple values:
+					tmp += sdot + spl[1] + "=" + val.unformat() + "\n";
+				}
+				else {
+					// Deserial it at once:
+					string serial = val.str;
+					if (!beginWith(serial, mymagic)) {
+						continue;
+					}
+					serial = serial.substr(mymagic.length());
+					vector<string> lspl = split(serial, '\n', -1, '\"', '\\', true);
+					for (auto &i : lspl) {
+						vector<string> itemspl = split(i, '=', 1);
+						if (itemspl.size() < 2) itemspl.push_back("null");
+						tmp += sdot + spl[1] + itemspl[0] + "=" + itemspl[1] + "\n";
+					}
+				}
+
 			}
 		}
 		return intValue(tmp);
@@ -765,39 +785,36 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 	else {
 		vector<string> spl = split(single_expr, ' ', 1);
 		if (spl.size() && spl[0].length()) {
-			if (spl.size() && spl[0].length()) {
-				// Internal expressions here ...
-
-				if (spl[0][0] == '$') {
-					spl[0] = vm[spl[0].substr(1)].str;
+			// Internal expressions here ...
+			if (spl[0][0] == '$') {
+				spl[0] = vm[spl[0].substr(1)].str;
+			}
+			else if (spl[0] == "new") {
+				// Object creation
+				varmap tvm;
+				tvm.push();
+				generateClass("__temp_new", spl[1], tvm);
+				return tvm["__temp_new"];
+			}
+			else if (spl[0] == "ishave") {
+				if (spl.size() < 2) {
+					raise_gv_ce("Parameter missing");
+					return intValue(0);
 				}
-				else if (spl[0] == "new") {
-					// Object creation
-					varmap tvm;
-					tvm.push();
-					generateClass("__temp_new", spl[1], tvm);
-					return tvm["__temp_new"];
+				if (spl[1].find(':') != string::npos) {
+					spl[1] = curexp(spl[1], vm);
 				}
-				else if (spl[0] == "ishave") {
-					if (spl.size() < 2) {
-						raise_gv_ce("Parameter missing");
-						return intValue(0);
-					}
-					if (spl[1].find(':') != string::npos) {
-						spl[1] = curexp(spl[1], vm);
-					}
-					return intValue(vm.count(spl[1]));
+				return intValue(vm.count(spl[1]));
+			}
+			else if (spl[0] == "isref") {
+				if (spl.size() < 2) {
+					raise_gv_ce("Parameter missing");
+					return intValue(0);
 				}
-				else if (spl[0] == "isref") {
-					if (spl.size() < 2) {
-						raise_gv_ce("Parameter missing");
-						return intValue(0);
-					}
-					if (spl[1].find(':') != string::npos) {
-						spl[1] = curexp(spl[1], vm);
-					}
-					return intValue(vm.have_referrer(spl[1]));
+				if (spl[1].find(':') != string::npos) {
+					spl[1] = curexp(spl[1], vm);
 				}
+				return intValue(vm.have_referrer(spl[1]));
 			}
 		}
 		vector<string> dotspl = { "","" };
@@ -857,12 +874,22 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 				xspl[0] = vm[spl[0] + ".__type__"].str;
 			}
 			string args = vm[spl[0] + ".__arg__"].str;
+			string array_arg = "";
+			static string pa_name = "...";	// Constants: No changes!
+			static string dots = ".";
+			vector<string> argname;	// Stores arguments that is required.
+			vector<string> arg;	// Stores arguments that is provided.
+			vector<intValue> ares;	// Stores values to deliver
+			if (beginWith(args, pa_name)) {
+				array_arg = args.substr(pa_name.length());
+				generateClass(array_arg, "list", nvm);
+			}
+			else {
+				argname = split(args, ' ');
+			}
 			if (args.length()) {
-				vector<string> argname = split(args, ' ');
-				vector<string> arg;
-				vector<intValue> ares;
 				bool str = false, dmode = false;
-				if (spl.size() >= 2) {
+				if (spl.size() >= 2) {	// Procees with arguments ...
 					//arg = split(spl[1], ',');
 					int quotes = 0;
 					string tmp = "";
@@ -897,21 +924,33 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 				else {
 					arg.push_back(spl[1]);
 				}
-				if (arg.size() != argname.size()) {
-					raise_gv_ce(string("Warning: Parameter dismatches or function does not exist while calling function ") + spl[0]);
-
-					return null;
+				if (!array_arg.length()) {
+					if (arg.size() != argname.size()) {
+						raise_gv_ce(string("Warning: Parameter dismatches or function does not exist while calling function ") + spl[0]);
+						return null;
+					}
 				}
+
 				for (size_t i = 0; i < arg.size(); i++) {
 					// Special character '^' will pass the referer!
 					if (arg[i].length() && arg[i][0] == '^') {
 						string rname = arg[i].substr(1);
 						if (vm.have_referrer(rname)) {
-							nvm.transform_referrer_from(argname[i], vm, rname);
+							if (array_arg.length()) {
+								nvm.transform_referrer_from(array_arg + dots + to_string(i), vm, auto_curexp(rname, vm));
+							}
+							else {
+								nvm.transform_referrer_from(argname[i], vm, auto_curexp(rname, vm));
+							}
 							continue;
 						}
 						else if (vm.count(rname)) {
-							nvm.set_referrer(argname[i], rname, &vm);
+							if (array_arg.length()) {
+								nvm.set_referrer(array_arg + dots + to_string(i), auto_curexp(rname, vm), &vm);
+							}
+							else {
+								nvm.set_referrer(argname[i], auto_curexp(rname, vm), &vm);
+							}
 							continue;
 						}
 						else {
@@ -923,12 +962,25 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 					auto re = calcute(arg[i], vm);
 					if (re.isObject) {
 						// Passing ByVal, automaticly deserial
-						nvm.deserial(argname[i], re.str);
+						if (array_arg.length()) {
+							nvm.deserial(array_arg + dots + to_string(i), re.str);
+						}
+						else {
+							nvm.deserial(argname[i], re.str);
+						}
 					}
 					else {
-						nvm[argname[i]] = re;
+						if (array_arg.length()) {
+							nvm[array_arg + dots + to_string(i)] = re;
+						}
+						else {
+							nvm[argname[i]] = re;
+						}
 					}
 				}
+			}
+			if (array_arg.length()) {
+				nvm[array_arg + dots + "length"] = intValue(arg.size());
 			}
 			if (set_this.length()) nvm.set_this(&vm, set_this);
 			if (set_no_this) {
@@ -1241,6 +1293,16 @@ string curexp(string exp, varmap &myenv) {
 	return dasher[0] + "." + final.str;
 }
 
+inline string auto_curexp(string exp, varmap &myenv) {
+	if (exp.find(':') != string::npos) {
+		return curexp(exp, myenv);
+	}
+	else {
+		return exp;
+	}
+}
+
+
 map<int, FILE*> files;
 
 class jumpertable {
@@ -1471,7 +1533,7 @@ intValue run(string code, varmap &myenv, string fname) {
 			parameter_check(2);
 			raiseError(calcute(codexec[1], myenv), myenv, fname, execptr + 1, -1, "User define error");
 		}
-		else if (codexec[0] == "set") {
+		else if (codexec[0] == "set" || codexec[0] == "declare") {
 			parameter_check(2);
 			vector<string> codexec2 = split(codexec[1], '=', 1);
 			parameter_check2(2, "set");
@@ -1481,6 +1543,9 @@ intValue run(string code, varmap &myenv, string fname) {
 			}
 			else if (codexec2[0].find(":") != string::npos) {
 				codexec2[0] = curexp(codexec2[0], myenv);
+			}
+			if (codexec[0] == "declare") {
+				myenv.declare(codexec2[0]);
 			}
 			if (codexec2[1].length() > 4 && codexec2[1].substr(0, 4) == "new ") {
 				vector<string> azer = split(codexec2[1], ' ');	// Classname is azer[1]
@@ -2433,7 +2498,7 @@ int main(int argc, char* argv[]) {
 	in_debug = false;
 	no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 3.1b\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.13b\nCompiled on ") + __DATE__ + " " + __TIME__;
+	string version_info = string("BluePage Interpreter\nVersion 3.2\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.14\nCompiled on ") + __DATE__ + " " + __TIME__;
 #pragma endregion
 	// End
 
