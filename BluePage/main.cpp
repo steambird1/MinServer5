@@ -372,7 +372,7 @@ public:
 			// Shouldn't be LF in key.
 		for (size_t i = 0; i < key.length(); i++) {
 			if (key[i] == '\n') key.erase(key.begin() + i);
-	}
+		}
 		// Find where it is
 		bool is_sharing = false;
 		if (key != "__is_sharing__" && this->operator[]("__is_sharing__").str == "1") {
@@ -387,6 +387,14 @@ public:
 		}
 
 		// Search for referrer
+		/*auto gd = get_dot(key);
+		if (have_referrer(gd.first)) {
+			return this->ref[gd.first].getValue(gd.second);
+		}
+		else if (have_referrer(key)) {
+			return this->ref[key].getValue();
+		}// Or for whole directly.
+		*/
 		// Check where the direction is OK.
 		vector<size_t> cutters;
 		size_t res = 0;
@@ -405,6 +413,42 @@ public:
 
 		if (have_referrer(key)) {
 			return this->ref[key].getValue();
+		}
+
+		if (key.find('.') != string::npos) {
+			// Must in same layer
+			vector<string> la = split(key, '.', 1);
+			for (vit i = vs.rbegin(); i != vs.rend(); i++) {
+				if (i->count(la[0])) {
+					if (!i->count(key)) return (*i)[key] = null;
+					if (unserial.count((*i)[key + ".__type__"].str)) {
+						return (*i)[key];
+					}
+					else {
+						auto se = serial(key);
+						intValue res = se;
+						res.isObject = true;
+						return ((*i))[key] = res;
+					}
+
+				}
+			}
+			if (glob_vs.count(la[0])) {
+				if (!glob_vs.count(key)) {
+					return glob_vs[key] = null;
+				}
+				if (unserial.count(glob_vs[key + ".__type__"].str)) {
+					return glob_vs[key];
+				}
+				else {
+
+					auto se = serial(key);
+					intValue res = se;
+					res.isObject = true;
+					return glob_vs[key] = res;
+				}
+
+			}
 		}
 
 		for (vit i = vs.rbegin(); i != vs.rend(); i++) {
@@ -432,26 +476,10 @@ public:
 				return glob_vs[key] = res;
 			}
 		}
-		if (key.find('.') != string::npos) {
-			// Must in same layer
-			vector<string> la = split(key, '.', 1);
-			for (vit i = vs.rbegin(); i != vs.rend(); i++) {
-				if (i->count(la[0])) {
-					(*i)[key] = null;
-					return (*i)[key];
-				}
-			}
-			if (glob_vs.count(la[0])) {
-				glob_vs[key] = null;
-				return glob_vs[key];
-			}
-		}
-		else {
-			if (!vs[vs.size() - 1].count(key)) vs[vs.size() - 1][key] = null;
-		}
+
 		return vs[vs.size() - 1][key];
 
-}
+	}
 	value_type serial(string name) {
 		for (vit i = vs.rbegin(); i != vs.rend(); i++) {
 			if (i->count(name)) {
@@ -927,8 +955,13 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 				}
 				if (!array_arg.length()) {
 					if (arg.size() != argname.size()) {
-						raise_gv_ce(string("Warning: Parameter dismatches or function does not exist while calling function ") + spl[0]);
-						return null;
+						if (argname.size() && arg.size() == argname.size() - 1) {
+							arg.push_back("null");	 // Placeholder
+						}
+						else {
+							raise_gv_ce(string("Warning: Parameter dismatches or function does not exist while calling function ") + spl[0]);
+							return null;
+						}
 					}
 				}
 
@@ -2499,7 +2532,7 @@ int main(int argc, char* argv[]) {
 	in_debug = false;
 	no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 3.2\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.14\nCompiled on ") + __DATE__ + " " + __TIME__;
+	string version_info = string("BluePage Interpreter\nVersion 3.2a\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.14a\nCompiled on ") + __DATE__ + " " + __TIME__;
 #pragma endregion
 	// End
 
