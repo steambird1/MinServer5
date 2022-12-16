@@ -1206,7 +1206,7 @@ intValue calcute(string expr, varmap &vm) {
 	// my_pr not provided (-1): Keep on poping
 	auto auto_pop = [&](int my_pr = -1) {
 		op_pr = -2;
-		while ((!op.empty()) && (op_pr = priority(op.top())) > my_pr) {
+		while ((!op.empty()) && (op_pr = priority(op.top())) >= my_pr) {	 // Therefore we changes right-to-left to left-to-right
 			intValue v1, v2;
 			char mc = op.top();
 			op.pop();
@@ -1317,15 +1317,12 @@ intValue calcute(string expr, varmap &vm) {
 #define postback_check(req) do {if (descmd.size() < req) {raise_global_ce("Error: required parameter not given in postback settings"); }} while (false)
 
 string curexp(string exp, varmap &myenv) {
-	vector<string> dasher = split(exp, ':');
+	vector<string> dasher = split(exp, ':', 1);
 	if (dasher.size() == 1) return exp;
-	// calcute until the last.
-	intValue final = calcute(dasher[dasher.size() - 1], myenv);
-	for (size_t i = dasher.size() - 2; i >= 1; i--) {
-		final = calcute(dasher[i] + ":" + final.str, myenv);
-	}
-	return dasher[0] + "." + final.str;
+	// Not the connection!
+	return dasher[0] + "." + calcute(dasher[1], myenv).str;
 }
+
 
 string auto_curexp(string exp, varmap &myenv) {
 	if (exp.find(':') != string::npos) {
@@ -2532,7 +2529,7 @@ int main(int argc, char* argv[]) {
 	in_debug = false;
 	no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 3.2a\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.14a\nCompiled on ") + __DATE__ + " " + __TIME__;
+	string version_info = string("BluePage Interpreter\nVersion 3.2b\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.14b\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
 #pragma endregion
 	// End
 
