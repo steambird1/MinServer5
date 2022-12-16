@@ -5,7 +5,41 @@ function mins_remove_cr(str) {
 }
 
 function mins_destrify(proceed_str) {
-    return proceed_str.replace(/\^n/g,"\n").replace(/\^\^/g,"^").replace(/\^d/g,".").replace(/\^c/g,",").replace(/\^e/g,"=").replace(/\^s/g," ");
+    //return proceed_str.replace(/\^n/g,"\n").replace(/\^d/g,".").replace(/\^c/g,",").replace(/\^e/g,"=").replace(/\^s/g," ").replace(/\^\^/g,"^");
+    var result = "";
+    for (let i = 0; i < proceed_str.length; i++) {
+        let cur = proceed_str[i];
+        switch (cur) {
+            case '^':
+                switch (proceed_str[i + 1]) {
+                    case '^':
+                        result += '^';
+                        break;
+                    case 'n':
+                        result += '\n';
+                        break;
+                    case 'd':
+                        result += '.';
+                        break;
+                    case 'c':
+                        result += ',';
+                        break;
+                    case 'e':
+                        result += '=';
+                        break;
+                    case 's':
+                        result += ' ';
+                        break;
+                    default:
+                        result += cur + proceed_str[i + 1]; // No processor
+                }
+                i++;
+                break;
+            default:
+                result += cur;
+        }
+    }
+    return result;
 }
 
 function mins_panic(data) {
@@ -42,7 +76,7 @@ function mins_dealing(content) {
                     break;
             }
         } catch (err) {
-
+            console.log("MinServer Postback Service: " + err.toString())
         }
     }
 }

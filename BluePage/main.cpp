@@ -2570,8 +2570,28 @@ int main(int argc, char* argv[]) {
 		else if (beginWith(opt, "--const:")) {
 			// String values only
 			vector<string> spl = split(opt, ':', 1);
+			if (spl.size() < 2) {
+				curlout();
+				cout << "Error: Bad format of --const option" << endl;
+				endout();
+				return 1;
+			}
 			vector<string> key_value = split(spl[1], '=', 1);
-			reqs[key_value[0]] = intValue(key_value[1]);
+			if (key_value.size() < 2) {
+				// For SELF_POST here's a special support:
+				if (key_value[0] == "SELF_POST") {
+					reqs["SELF_POST"] = intValue("");	// Means root directory
+				}
+				else {
+					reqs[key_value[0]] = null;
+				}
+				
+			}
+			else {
+				reqs[key_value[0]] = intValue(key_value[1]);
+			}
+			
+			
 		}
 		else if (beginWith(opt, "--target:")) {
 			vector<string> spl = split(opt, ':', 1);
@@ -2680,6 +2700,9 @@ int main(int argc, char* argv[]) {
 			Event in the code must be like [HTML id]_[event], not using '.'!
 			*/
 			autolen = true;	// Since postback is used autolen must be used -- <script> will be inserted!
+			if ((!reqs.count("SELF_POST")) || reqs["SELF_POST"].isNull) {
+				raise_global_ce("SELF_POST is not supported by server");
+			}
 			string &myself = reqs["SELF_POST"].str;
 			while (myself.length() && myself[0] == '"') myself.erase(myself.begin());
 			while (myself.length() && myself[myself.length() - 1] == '"') myself.pop_back();
@@ -2695,10 +2718,7 @@ int main(int argc, char* argv[]) {
 				end_of_postback = true;
 				break;
 			}
-			if (myself == "") {
-				raise_global_ce("Cannot use postback: SELF_POST is not supported by Server");
-			}
-			else if (postback_set) {
+			if (postback_set) {
 				raise_global_ce("Cannot add 2 or more postback description in a file");
 			}
 			else {
