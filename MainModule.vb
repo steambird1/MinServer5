@@ -33,28 +33,45 @@ Module MainModule
     Private Sub Initalize()
         InitalizeContents()
         For Each i In My.Application.CommandLineArgs
+            Dim SplResult() As String = Split(i, ":", 2)
+            If SplResult.Count() < 1 Then
+                Continue For
+            End If
             If i = "--debug" Then
                 IsDebug = "--debug"
                 Console.ForegroundColor = ConsoleColor.Magenta
                 Console.Out.Write("*** Server is in debug mode ***")
                 Console.ForegroundColor = ConsoleColor.White
                 Continue For
-            End If
-            If i = "--version" Then
+            ElseIf i = "--version" Then
                 ' Get its version info:
                 Console.Out.Write("MinServer 5")
                 Console.Out.WriteLine()
                 Console.Out.Write("With BlueBetter and BluePage interpreter")
                 Console.Out.WriteLine()
-                Console.Out.Write("Version 1.5")
+                Console.Out.Write("Version 1.8c")
                 Console.Out.WriteLine()
                 End
+            ElseIf SplResult(0) = "--port" Then
+                If SplResult.Count() < 2 Then
+                    Continue For
+                End If
+                Port = Val(SplResult(1))
+            ElseIf SplResult(0) = "--extension" Then
+                If SplResult.Count() < 2 Then
+                    Continue For
+                End If
+                Dim ConAlias() As String = Split(SplResult(1), "=", 2)
+                If ConAlias.Count() < 2 Then
+                    Continue For
+                End If
+                contents.Add(ConAlias(0), ConAlias(1))
+            ElseIf SplResult(0) = "--500" Then
+                InternalServerPath = SplResult(1)
+            ElseIf SplResult(0) = "--404" Then
+                NotFoundPath = SplResult(1)
             End If
-            Dim PortPosition As Integer = i.IndexOf("--port:")
-            If PortPosition >= 0 Then
-                Dim PortPre As String = i.Substring(PortPosition + "--port:".Length)
-                PortPosition = Val(PortPre)
-            End If
+
         Next
     End Sub
 
@@ -99,8 +116,9 @@ Module MainModule
         Return s.ToString()
     End Function
 
-    Public ReadOnly Property InternalServerError As String = "HTTP/1.1 500 Internal Server Error" & vbLf & "Connection: Keep-Alive" & vbLf & "Content-Type: text/html" & vbLf & "Content-Length: 373" & vbLf & vbLf & "<html><head><title>500 - Internal Server Error</title></head><body><h1>500 Internal Server Error</h1><br /><p>The BlueBetter Program didn't provide any content to send.</p><hr /><p>MinServer 5</p></body></html>"
-    Public ReadOnly Property NotFoundError As String = "HTTP/1.1 404 Not Found" & vbLf & "Connection: Keep-Alive" & vbLf & "Content-Type: text/html" & vbLf & "Content-Length: 309" & vbLf & vbLf & "<html><head><title>404 - Not Found</title></head><body><h1>404 Not Found</h1><br /><p>Specified path does not exist.</p><hr /><p>MinServer 5</p></body></html>"
+    Public Property DefaultServerErrorPath As String = pather & "\500.html"   ' If actives twice call this.
+    Public Property InternalServerPath As String = pather & "\500.html"
+    Public Property NotFoundPath As String = pather & "\404.html"
 
     Sub AsyncRequestProcessor(Parameter As IAsyncResult)
         Dim tcp As TcpListener = CType(Parameter.AsyncState, TcpListener)
@@ -136,8 +154,20 @@ Module MainModule
         End If
     End Function
 
+    Public Function GetRealPath(MyScriptRaw As String) As String
+        Dim MyScript As String
+        For Each i In indexname
+            MyScript = MyScriptRaw & i
+            If My.Computer.FileSystem.FileExists(MyScript) Then
+                Return MyScript
+            End If
+        Next
+        Return Nothing
+    End Function
+
     Sub RequestProcessor(Parameter As ReadWrites)
-        Dim ExceptionOccured As Boolean = False
+        'Dim ExceptionOccured As Boolean = False
+        Dim NotFounds As Boolean = False
         Dim MyRW As ReadWrites = Parameter
         Dim MySenderData As New WebString
         ' Process here...
@@ -158,20 +188,17 @@ Module MainModule
             FilePath = FilePath.Substring(0, FilePathSeeker)
         End If
         Dim MyScriptRaw As String = pather & "\" & FilePath
-        Dim MyScript As String = MyScriptRaw
-        ' Detect if directory
-        For Each i In indexname
-            MyScript = MyScriptRaw & i
-            If My.Computer.FileSystem.FileExists(MyScript) Then
-                Exit For
-            End If
-        Next
-        If Not My.Computer.FileSystem.FileExists(MyScript) Then
+        Dim MyScript As String = GetRealPath(MyScriptRaw)
+        Dim ExternalOption As String = ""
+        Dim IsServerError As Boolean = False
+        If IsNothing(MyScript) Then
             ShowWarning("404: " & MyScript)
-            MySenderData = New WebString(NotFoundError)
-            GoTo BeginWriting
+            'MySenderData = New WebString(NotFoundError)
+            'GoTo BeginWriting
+NotFoundError: MyScript = NotFoundPath
+            ExternalOption = " --const:ERROR=404"
         End If
-        Dim MyExtension As String = GetExtension(MyScript)
+NormalResolver: Dim MyExtension As String = GetExtension(MyScript)
         Dim DocKind As String = GetDocumentKind(MyExtension)
 
         Dim DirectoryToBluebetter As String = ""
@@ -292,8 +319,7 @@ Module MainModule
                 MyCodeContent = My.Computer.FileSystem.OpenTextFileReader(MyScript)
             Catch ex As FileNotFoundException
                 ShowWarning("404: " & MyScript)
-                MySenderData = NotFoundError
-                GoTo BeginWriting
+                GoTo NotFoundError
             End Try
             ActiveScript.Write(MyCodeContent.ReadToEnd())
             MyCodeContent.Close()
@@ -304,10 +330,10 @@ Module MainModule
             ' ... Execute BlueBetter ...
             ' Previous work has been completed!
             ' Execute!
-            Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter & " --const:page_mode=0 " & IsDebug, AppWinStyle.Hide, True)
+            Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter & " --const:page_mode=0 " & IsDebug & ExternalOption, AppWinStyle.Hide, True)
             ' Write response ...
         ElseIf MyExtension = page_interpreter Then
-            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --const:page_mode=1 --const:SELF_POST=" & SelfPost & " --const:IS_POSTBACK=" & IsPostBack & " " & IsDebug, AppWinStyle.Hide, True)
+            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --const:page_mode=1 --const:SELF_POST=" & SelfPost & " --const:IS_POSTBACK=" & IsPostBack & " " & IsDebug & ExternalOption, AppWinStyle.Hide, True)
         Else
             ' Send the whole file
             ' To modify encoding and apply to everywhere!
@@ -315,7 +341,13 @@ Module MainModule
             Dim WLength As Long = WholeReader.BaseStream.Length
             'Dim WholeData As Char() = WholeReader.ReadChars(WLength)
             Dim WholeData As Byte() = WholeReader.ReadBytes(WLength)
-            MySenderData.Append("HTTP/1.1 200 OK")
+            If NotFounds Then
+                MySenderData.Append("HTTP/1.1 404 Not Found")
+            ElseIf IsServerError Then
+                MySenderData.Append("HTTP/1.1 500 Internal Server Error")
+            Else
+                MySenderData.Append("HTTP/1.1 200 OK")
+            End If
             MySenderData.AppendLine()
             MySenderData.Append("Content-Type: " & DocKind)
             MySenderData.AppendLine()
@@ -343,9 +375,14 @@ NoExecuted:
                 MySenderStream.Close()
             Catch ex As FileNotFoundException
                 ShowWarning("500: The program doesn't return anything to return!")
-                MyRW.Writer.Write(InternalServerError)
-                MyRW.Writer.Write(vbLf)
-                ExceptionOccured = True
+                If IsServerError Then
+                    MyScript = DefaultServerErrorPath
+                Else
+                    MyScript = InternalServerPath
+                End If
+                IsServerError = True
+                ExternalOption = " --const:ERROR=500"
+                GoTo NormalResolver
             End Try
             Try
                 If My.Computer.FileSystem.FileExists(ActiveCommander) Then
@@ -381,11 +418,10 @@ NoExecuted:
             End Try
         End If
 
-BeginWriting: If Not ExceptionOccured Then
-            MyRW.Writer.Write(MySenderData.ByteData)
-            MyRW.Writer.Write(vbLf)
-            MyRW.Writer.Flush()
-        End If
+BeginWriting: ' Always runs
+        MyRW.Writer.Write(MySenderData.ByteData)
+        MyRW.Writer.Write(vbLf)
+        MyRW.Writer.Flush()
         MyRW.Reader.Close()
         MyRW.Writer.Close()
 FinishWriting: MyRW.Client.Close()

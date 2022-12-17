@@ -536,7 +536,7 @@ public:
 		// Clean in my tree.
 		for (auto i = vs.rbegin(); i != vs.rend(); i++) {
 			if (i->count(name)) {
-				(*i)[name] = null;
+				i->erase(name);
 				vector<string> to_delete;
 				for (auto &j : (*i)) {
 					if (beginWith(j.first, name + ".")) {
@@ -547,6 +547,7 @@ public:
 				for (auto &j : to_delete) {
 					i->erase(j);
 				}
+				return;
 			}
 		}
 	}
@@ -830,6 +831,9 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 					raise_gv_ce("Parameter missing");
 					return intValue(0);
 				}
+				// Remove () for them:
+				while (spl[1].length() && spl[1][0] == '(') spl[1].erase(spl[1].begin());
+				while (spl[1].length() && spl[1][spl[1].length() - 1] == ')') spl[1].pop_back();
 				if (spl[1].find(':') != string::npos) {
 					spl[1] = curexp(spl[1], vm);
 				}
@@ -840,6 +844,9 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 					raise_gv_ce("Parameter missing");
 					return intValue(0);
 				}
+				// Remove () for them:
+				while (spl[1].length() && spl[1][0] == '(') spl[1].erase(spl[1].begin());
+				while (spl[1].length() && spl[1][spl[1].length() - 1] == ')') spl[1].pop_back();
 				if (spl[1].find(':') != string::npos) {
 					spl[1] = curexp(spl[1], vm);
 				}
@@ -2529,7 +2536,7 @@ int main(int argc, char* argv[]) {
 	in_debug = false;
 	no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 3.2b\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.14b\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
+	string version_info = string("BluePage Interpreter\nVersion 3.2c\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.14c\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
 #pragma endregion
 	// End
 
