@@ -1,5 +1,9 @@
 var mins_timers = {};
 
+// function mins_postback(info,para)
+// info: The function will be called (-> .field)
+// para: The external parameter (-> .parameter)
+
 function mins_remove_cr(str) {
     return str.replace(/\r/g,"");
 }
@@ -42,10 +46,6 @@ function mins_destrify(proceed_str) {
     return result;
 }
 
-function mins_panic(data) {
-    document.write("<h1>Postback Error</h1><br /><p>The page has experienced a fatal PostBack error. Details:</p><p>"+data+"</p><p>Contact the owner of website for help.");   
-}
-
 function mins_format(str) {
     return str.replace(/\\/g, '\\\\').replace(/"/g, '\\"');   
 }
@@ -79,4 +79,37 @@ function mins_dealing(content) {
             console.log("MinServer Postback Service: " + err.toString())
         }
     }
+}
+
+// These functions are for BluePage jobs:
+// The parameter must be one string ('data').
+function mins_write(data) {
+    document.write(data);
+}
+
+function mins_alert(data) {
+    alert(data);
+}
+
+// Format: [Target BlueBetter Function]:[Confirm information], will call the function later
+function mins_confirm(data) {
+    var exp = data.indexOf(":");
+    var target = data.substr(0, exp);
+    var info = data.substr(exp + 1);
+    mins_postback(target.trim(), Number(confirm(info)));
+}
+
+function mins_prompt(data) {
+    var exp = data.indexOf(":");
+    var target = data.substr(0, exp);
+    var info = data.substr(exp + 1);
+    mins_postback(target.trim(), prompt(info));
+}
+
+function mins_panic(data) {
+    document.write("<h1>Postback Error</h1><br /><p>The page has experienced a fatal PostBack error. Details:</p><p>" + data + "</p><p>Contact the owner of website for help.");
+}
+
+function mins_refresh(data) {
+    location.reload();
 }

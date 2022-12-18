@@ -1237,7 +1237,7 @@ intValue calcute(string expr, varmap &vm) {
 			if (expr[i] == '(') {
 				// Here should be operator previously.
 				int t = 1;
-				while (int(i) - t >= 0 && expr[i - t] == '(') t--;
+				while (int(i) - t > 0 && expr[i - t] == '(') t++;
 				if ((i == 0 || priority(expr[i - t]) >= 0) && (!ignore)) {
 					op.push('(');
 				}
@@ -2536,7 +2536,7 @@ int main(int argc, char* argv[]) {
 	in_debug = false;
 	no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 3.2c\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.14c\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
+	string version_info = string("BluePage Interpreter\nVersion 3.2d\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.14d\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
 #pragma endregion
 	// End
 
@@ -2779,7 +2779,7 @@ int main(int argc, char* argv[]) {
 				else {
 					while (!feof(fread)) {
 						fgets(post_buf1, 8192, fread);
-						content += string(post_buf1) + "\n";
+						content += string(post_buf1);// +"\n";
 					}
 					fclose(fread);
 					content += onloadcall;

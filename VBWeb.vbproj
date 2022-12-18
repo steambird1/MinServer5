@@ -112,8 +112,12 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="404.html" />
-    <Content Include="500.html" />
+    <Content Include="404.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="500.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="GETExample.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.VisualBasic.targets" />
