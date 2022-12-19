@@ -453,7 +453,7 @@ FinishWriting: MyRW.Client.Close()
 
         Console.Out.WriteLine()
 
-        listener = New TcpListener(local, Port)
+        listener = New TcpListener(IPAddress.Any, Port)
         Try
             listener.Start()
         Catch ex As SocketException
