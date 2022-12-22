@@ -216,6 +216,7 @@ NormalResolver: Dim MyExtension As String = GetExtension(MyScript)
         Dim ActiveExecuter As String = ""
         Dim ActiveCommander As String = ""
         Dim MySender As String = ""
+        Dim UTFTarget As String = ""
         Dim ActiveScript As StreamWriter = Nothing
         Dim MyHeader As StreamReader = Nothing
         Dim Attachments As List(Of String) = New List(Of String)
@@ -327,8 +328,8 @@ NormalResolver: Dim MyExtension As String = GetExtension(MyScript)
             ' Read file to run
             Dim MyCodeContent As StreamReader = Nothing
             Try
-                ' Must be ANSI for programs
-                MyCodeContent = My.Computer.FileSystem.OpenTextFileReader(MyScript, Encoding.Default)
+                ' Now we use UTF-8 here!
+                MyCodeContent = My.Computer.FileSystem.OpenTextFileReader(MyScript, Encoding.UTF8)
             Catch ex As FileNotFoundException
                 ShowWarning("404: " & MyScript)
                 GoTo NotFoundError
@@ -346,7 +347,9 @@ NormalResolver: Dim MyExtension As String = GetExtension(MyScript)
             Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter & " --const:page_mode=0 " & IsDebug & ExternalOption, AppWinStyle.Hide, True)
             ' Write response ...
         ElseIf MyExtension = page_interpreter Then
-            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --const:page_mode=1 --const:SELF_POST=" & SelfPost & " --const:IS_POSTBACK=" & IsPostBack & " " & IsDebug & ExternalOption, AppWinStyle.Hide, True)
+            ' Supports UTF.
+            UTFTarget = GenerateRandom(DirectoryToBluebetter)
+            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --const:page_mode=1 --const:SELF_POST=" & SelfPost & " --const:IS_POSTBACK=" & IsPostBack & " --const:UTF_TARGET=" & UTFTarget & "" & IsDebug & ExternalOption, AppWinStyle.Hide, True)
         Else
             ' Send the whole file
             ' To modify encoding and apply to everywhere!
@@ -398,8 +401,12 @@ NoExecuted: ' This is a connection between BluePage and host server.
                                 keepedata(Keeper(0)) = Keeper(1)
                             Case "do_convert"
                                 ' Convert requirement (ANSI -> UTF-8)
-                                ' (No parameter)
-                                DoUTFConvert = True
+                                If MyExtension = page_interpreter Then
+                                    DoUTFConvert = True
+                                Else
+                                    ShowWarning("Caution: Cannot do UTF Convert for BlueBetter interpreter")
+                                End If
+
                         End Select
                     End While
                     MyCommanderStream.Close()
@@ -413,12 +420,16 @@ NoExecuted: ' This is a connection between BluePage and host server.
                 If MySenderStream.BaseStream.Length = 0 Then
                     Throw New FileNotFoundException
                 End If
+                MySenderData.Append(MySenderStream.ReadBytes(MySenderStream.BaseStream.Length))
                 If DoUTFConvert Then
-                    ' Here: Different languages lead to different encodings.
-                    Dim AChars = Encoding.Default.GetChars(MySenderStream.ReadBytes(MySenderStream.BaseStream.Length))
-                    MySenderData.Append(Encoding.UTF8.GetBytes(AChars))
-                Else
-                    MySenderData.Append(MySenderStream.ReadBytes(MySenderStream.BaseStream.Length))
+                    Dim MyContentStream As BinaryReader = New BinaryReader(File.Open(UTFTarget, FileMode.Open))
+                    Dim AllContent = MyContentStream.ReadBytes(MyContentStream.BaseStream.Length)
+                    Dim OriginChars = Encoding.Default.GetChars(AllContent)
+                    Dim UTFContent = Encoding.UTF8.GetBytes(OriginChars)
+                    Dim UTFLength = UTFContent.Count()
+                    MySenderData.Append(New WebString("Content-Length: " & UTFLength & vbCrLf & vbCrLf))
+                    MySenderData.Append(UTFContent)
+                    MyContentStream.Close()
                 End If
                 MySenderStream.Close()
             Catch ex As FileNotFoundException
@@ -435,6 +446,9 @@ NoExecuted: ' This is a connection between BluePage and host server.
             Try
                 My.Computer.FileSystem.DeleteDirectory(DirectoryToBluebetter, FileIO.DeleteDirectoryOption.DeleteAllContents)
                 My.Computer.FileSystem.DeleteFile(MySender)
+                If DoUTFConvert Then
+                    My.Computer.FileSystem.DeleteFile(UTFTarget)
+                End If
                 For Each i In Attachments
                     My.Computer.FileSystem.DeleteFile(i)
                 Next

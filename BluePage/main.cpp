@@ -2512,9 +2512,11 @@ intValue preRun(string code, varmap &myenv, map<string, intValue> required_globa
 }
 
 char post_buf1[8192] = {};
+string utf_target = "";
+bool using_utf = false;	// Which means put content into another file
 
 int main(int argc, char* argv[]) {
-	setlocale(LC_ALL, "C");
+	//setlocale(LC_ALL, "C");
 	stdouth = GetStdHandle(STD_OUTPUT_HANDLE);
 
 	// Test: Input code here:
@@ -2660,6 +2662,19 @@ int main(int argc, char* argv[]) {
 		return null;
 	};
 
+	auto utf_call = [](string exp, varmap &env) -> intValue {
+		if (!utf_target.length()) {
+			raiseError(null, env, "Internal processor of BluePage", 0, 0, "UTF Convert requirement is not supported");
+			return null;
+		}
+		using_utf = true;
+		return null;
+	};
+
+	auto &ur = reqs["UTF_TARGET"];
+	if (!ur.isNull) {
+		utf_target = ur.str;
+	}
 	varmap keep_env;
 	keep_env.push();
 	size_t next_pos = 0, previous_pos = 0;
@@ -2693,7 +2708,7 @@ int main(int argc, char* argv[]) {
 		current_code = code.substr(beginner, run_size);
 		bool postback_set = false;
 		if (options.count("initial")) {
-			preRun(current_code, keep_env, reqs, { {string("bluecho"), initial_echo} });
+			preRun(current_code, keep_env, reqs, { {string("bluecho"), initial_echo}, {string("__utfcall"), utf_call} });
 		}
 		else if (options.count("autolen")) {
 			autolen = true;
@@ -2723,7 +2738,7 @@ int main(int argc, char* argv[]) {
 			if (is_postback == "1") {
 				// To be written... serial object into postback support, also send commands back.
 				// AND: ANYTHING AFTER IT will be ignored!!!
-				preRun("postback._inside_process", keep_env, reqs, { {string("bluecho"), normal_echo} });
+				preRun("postback._inside_process", keep_env, reqs, { {string("bluecho"), normal_echo}, {string("__utfcall"), utf_call} });
 				end_of_postback = true;
 				break;
 			}
@@ -2803,17 +2818,25 @@ int main(int argc, char* argv[]) {
 	if (!end_of_postback) content += code.substr(previous_pos);
 	FILE *fout = fopen(target_path.c_str(), "w");
 	fprintf(fout, "%s\n", header.c_str());
-	if (autolen) {
-		size_t cl = content.length();
-		// Add a special patch for windows CR-LF.
-		size_t tgt = 0;
-		while ((tgt = content.find('\n', tgt)) != string::npos) {
-			cl++;	// Add for CR.
-			tgt++;	// Length of LF.
+	if (!using_utf) {
+		if (autolen) {
+			size_t cl = content.length();
+			// Add a special patch for windows CR-LF.
+			size_t tgt = 0;
+			while ((tgt = content.find('\n', tgt)) != string::npos) {
+				cl++;	// Add for CR.
+				tgt++;	// Length of LF.
+			}
+			fprintf(fout, "Content-Length: %d\n", cl);
 		}
-		fprintf(fout, "Content-Length: %d\n", cl);
+		fprintf(fout, "\n%s", content.c_str());
 	}
-	fprintf(fout, "\n%s", content.c_str());
+	else {
+		FILE *fcon = fopen(utf_target.c_str(), "w");
+		fprintf(fcon, "%s", content.c_str());
+		fclose(fcon);
+	}
+	
 	fclose(fout);
 
 	return 0;

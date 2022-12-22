@@ -88,10 +88,14 @@ class sender:
 		sender.write_header "HTTP/1.1",200,"OK"
 		sender.write_attribute "Content-Type","text/plain"
 	function require_utf:
-		set syncer=new writer
-		syncer.open keeper.commander,false,false
-		syncer.write ("do_convert"+LF)
-		syncer.close
+		if page_mode=1:
+			set syncer=new writer
+			syncer.open keeper.commander,false,false
+			syncer.write ("do_convert"+LF)
+			syncer.close
+			call __utfcall
+		else:
+			raise "Cannot use sender.require_utf"
 	function start_content:
 		if page_mode=1:
 			raise "Cannot use sender.start_content"
