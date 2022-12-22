@@ -15,6 +15,7 @@
 #include <windows.h>
 #include <ctime>
 #include <cmath>
+#include <clocale>
 using namespace std;
 
 string target_path = "", header = "", content = "";
@@ -2513,6 +2514,7 @@ intValue preRun(string code, varmap &myenv, map<string, intValue> required_globa
 char post_buf1[8192] = {};
 
 int main(int argc, char* argv[]) {
+	setlocale(LC_ALL, "C");
 	stdouth = GetStdHandle(STD_OUTPUT_HANDLE);
 
 	// Test: Input code here:

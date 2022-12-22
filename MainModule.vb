@@ -16,8 +16,10 @@ Module MainModule
     Public Const interpreter As String = ".blue"
     Public Const page_interpreter As String = ".bp"
     Public keepedata As Dictionary(Of String, String) = New Dictionary(Of String, String)
+    Public ConvertableFiles As HashSet(Of String) = New HashSet(Of String)
     Public IsDebug As String = ""                       ' If do so, here will be --debug
     Public Port As Integer = 80                             ' Default port
+    Public AlwaysRunConverts As Boolean = False
     Public Const PostBackEntry As String = "MinServerPostBack"
     'Private lock As Threading.SpinLock = New SpinLock()
 
@@ -28,6 +30,8 @@ Module MainModule
         contents.Add(".jpg", "image/jpeg")
         contents.Add(".png", "image/png")
         contents.Add(".htm", "text/html")
+        ConvertableFiles.Add(".html")
+        ConvertableFiles.Add(".htm")
     End Sub
 
     Private Sub Initalize()
@@ -43,6 +47,8 @@ Module MainModule
                 Console.Out.Write("*** Server is in debug mode ***")
                 Console.ForegroundColor = ConsoleColor.White
                 Continue For
+            ElseIf i = "--always-convert" Then
+                AlwaysRunConverts = True
             ElseIf i = "--version" Then
                 ' Get its version info:
                 Console.Out.Write("MinServer 5")
@@ -66,6 +72,11 @@ Module MainModule
                     Continue For
                 End If
                 contents.Add(ConAlias(0), ConAlias(1))
+            ElseIf i = "--converts" Then
+                If SplResult.Count() < 2 Then
+                    Continue For
+                End If
+                ConvertableFiles.Add(SplResult(1))
             ElseIf SplResult(0) = "--500" Then
                 InternalServerPath = SplResult(1)
             ElseIf SplResult(0) = "--404" Then
@@ -316,12 +327,14 @@ NormalResolver: Dim MyExtension As String = GetExtension(MyScript)
             ' Read file to run
             Dim MyCodeContent As StreamReader = Nothing
             Try
-                MyCodeContent = My.Computer.FileSystem.OpenTextFileReader(MyScript)
+                ' Must be ANSI for programs
+                MyCodeContent = My.Computer.FileSystem.OpenTextFileReader(MyScript, Encoding.Default)
             Catch ex As FileNotFoundException
                 ShowWarning("404: " & MyScript)
                 GoTo NotFoundError
             End Try
-            ActiveScript.Write(MyCodeContent.ReadToEnd())
+            Dim MyCodeData = MyCodeContent.ReadToEnd()
+            ActiveScript.Write(MyCodeData)
             MyCodeContent.Close()
             ActiveScript.Close()
         End If
@@ -365,13 +378,48 @@ NormalResolver: Dim MyExtension As String = GetExtension(MyScript)
 
         ' Special processor for interpreters
         If MyExtension = interpreter OrElse MyExtension = page_interpreter Then
-NoExecuted:
+NoExecuted: ' This is a connection between BluePage and host server.
+            Dim DoUTFConvert As Boolean = AlwaysRunConverts
+            Try
+                If My.Computer.FileSystem.FileExists(ActiveCommander) Then
+                    Dim MyCommanderStream As StreamReader = My.Computer.FileSystem.OpenTextFileReader(ActiveCommander)
+                    While Not MyCommanderStream.EndOfStream
+                        Dim CurrentCommand As String = MyCommanderStream.ReadLine()
+                        Dim CurrentSplit As String() = Split(CurrentCommand, " ", 2)
+                        Select Case CurrentSplit(0)
+                            Case "keep"
+                                ' Keep command
+                                ' keep [a]=[b]
+                                If CurrentSplit.Count() < 2 Then
+                                    ShowWarning("Caution: Incorrect format of 'keep' command: " & CurrentCommand)
+                                    Continue While
+                                End If
+                                Dim Keeper As String() = Split(CurrentSplit(1), "=", 2)
+                                keepedata(Keeper(0)) = Keeper(1)
+                            Case "do_convert"
+                                ' Convert requirement (ANSI -> UTF-8)
+                                ' (No parameter)
+                                DoUTFConvert = True
+                        End Select
+                    End While
+                    MyCommanderStream.Close()
+                    My.Computer.FileSystem.DeleteFile(ActiveCommander)
+                End If
+            Catch ex As Exception
+                ShowWarning("Caution: Commander may be not executed correctly: " & ex.ToString())
+            End Try
             Try
                 Dim MySenderStream As BinaryReader = New BinaryReader(File.Open(MySender, FileMode.Open))
                 If MySenderStream.BaseStream.Length = 0 Then
                     Throw New FileNotFoundException
                 End If
-                MySenderData.Append(MySenderStream.ReadBytes(MySenderStream.BaseStream.Length))
+                If DoUTFConvert Then
+                    ' Here: Different languages lead to different encodings.
+                    Dim AChars = Encoding.Default.GetChars(MySenderStream.ReadBytes(MySenderStream.BaseStream.Length))
+                    MySenderData.Append(Encoding.UTF8.GetBytes(AChars))
+                Else
+                    MySenderData.Append(MySenderStream.ReadBytes(MySenderStream.BaseStream.Length))
+                End If
                 MySenderStream.Close()
             Catch ex As FileNotFoundException
                 ShowWarning("500: The program doesn't return anything to return!")
@@ -383,29 +431,6 @@ NoExecuted:
                 IsServerError = True
                 ExternalOption = " --const:ERROR=500"
                 GoTo NormalResolver
-            End Try
-            Try
-                If My.Computer.FileSystem.FileExists(ActiveCommander) Then
-                    Dim MyCommanderStream As StreamReader = My.Computer.FileSystem.OpenTextFileReader(ActiveCommander)
-                    While Not MyCommanderStream.EndOfStream
-                        Dim CurrentCommand As String = MyCommanderStream.ReadLine()
-                        Dim CurrentSplit As String() = Split(CurrentCommand, " ", 2)
-                        If CurrentSplit.Count() < 2 Then
-                            Continue While
-                        End If
-                        Select Case CurrentSplit(0)
-                            Case "keep"
-                                ' Keep command
-                                ' keep [a]=[b]
-                                Dim Keeper As String() = Split(CurrentSplit(1), "=", 2)
-                                keepedata(Keeper(0)) = Keeper(1)
-                        End Select
-                    End While
-                    MyCommanderStream.Close()
-                    My.Computer.FileSystem.DeleteFile(ActiveCommander)
-                End If
-            Catch ex As Exception
-                ShowWarning("Caution: Commander may be not executed correctly: " & ex.ToString())
             End Try
             Try
                 My.Computer.FileSystem.DeleteDirectory(DirectoryToBluebetter, FileIO.DeleteDirectoryOption.DeleteAllContents)

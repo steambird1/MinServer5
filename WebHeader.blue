@@ -81,6 +81,17 @@ class sender:
 				echo (key+": "+value)
 			else:
 				sender.write (key+": "+value+LF)
+	function start_html:
+		sender.write_header "HTTP/1.1",200,"OK"
+		sender.write_attribute "Content-Type","text/html"
+	function start_txt:
+		sender.write_header "HTTP/1.1",200,"OK"
+		sender.write_attribute "Content-Type","text/plain"
+	function require_utf:
+		set syncer=new writer
+		syncer.open keeper.commander,false,false
+		syncer.write ("do_convert"+LF)
+		syncer.close
 	function start_content:
 		if page_mode=1:
 			raise "Cannot use sender.start_content"
