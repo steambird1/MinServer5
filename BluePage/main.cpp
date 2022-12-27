@@ -37,7 +37,7 @@ typedef unsigned long long					ulong64;
 class varmap;
 struct intValue;
 intValue run(string code, varmap &myenv, string fname);
-intValue calcute(string expr, varmap &vm);
+intValue calculate(string expr, varmap &vm);
 void raiseError(intValue raiseValue, varmap &myenv, string source_function = "Unknown source", size_t source_line = 0, double error_id = 0, string error_desc = "");
 intValue getValue(string single_expr, varmap &vm, bool save_quote = false);
 void generateClass(string variable, string classname, varmap &myenv, bool run_init = true);
@@ -734,20 +734,28 @@ public:
 	inheritance_disjoint() {
 
 	}
-	string find(string name) {
-		while (name.length() && name[name.length() - 1] == '\n') name.pop_back();
-		if (!inhs.count(name)) inhs[name] = name;
-		if (inhs[name] == name) return name;
-		return inhs[name] = find(inhs[name]);
-	}
+	// Father: a, Son: b
 	inline void unions(string a, string b) {
-		inhs[find(a)] = find(b);
+		father_classes[b].insert(a);
 	}
-	inline bool is_same(string a, string b) {
-		return find(a) == find(b);
+	// Ask if b is a's father (or grand ... father) according to the usage
+	bool is_same(string a, string b) {
+		if (a == b) return true;
+		auto mp = make_pair(a, b);
+		if (result_caches.count(mp)) return result_caches[mp];
+		bool result = false;
+		for (auto &i : father_classes[a]) {
+			if (is_same(i, b)) {
+				result = true;
+				break;
+			}
+		}
+		return result_caches[mp] = result;
 	}
 private:
-	map<string, string> inhs;
+	//map<string, string> inhs;
+	map<string, set<string> > father_classes;
+	map<pair<string, string>, bool> result_caches;
 } inh_map;
 
 // Ignorer can be quote-like char.
@@ -1001,7 +1009,7 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 							raise_gv_ce(string("Warning: Not an acceptable referrer: ") + arg[i]);
 						}
 					}
-					auto re = calcute(arg[i], vm);
+					auto re = calculate(arg[i], vm);
 					if (re.isObject) {
 						// Passing ByVal, automaticly deserial
 						if (array_arg.length()) {
@@ -1066,7 +1074,7 @@ int priority(char op) {
 	case '#':
 		return 5;
 		break;
-	case '&': case '|':
+	case '&': case '|': case '^':
 		return 4;
 		break;
 	case '*': case '/': case '%':
@@ -1087,7 +1095,7 @@ int priority(char op) {
 }
 
 // Please notice special meanings.
-intValue primary_calcute(intValue first, char op, intValue second, varmap &vm) {
+intValue primary_calculate(intValue first, char op, intValue second, varmap &vm) {
 	switch (op) {
 	case '(': case ')':
 		break;
@@ -1192,13 +1200,28 @@ intValue primary_calcute(intValue first, char op, intValue second, varmap &vm) {
 			return 1;
 		}
 		break;
+	case '^':
+		if (first.isNumeric && second.isNumeric) {
+			return ulong64(first.numeric) ^ ulong64(second.numeric);
+		}
+		else {
+			bool first_bool = true, second_bool = true;
+			if (first.isNull) first_bool = false;
+			else if (first.str.length() == 0) first_bool = false;
+
+			if (second.isNull) second_bool = false;
+			else if (second.str.length() == 0) second_bool = false;
+
+			return first_bool ^ second_bool;
+		}
 	default:
+		raiseError(intValue("Unknown operator"), vm, "Runtime");
 		return null;
 	}
 }
 
 // Code must be checked
-intValue calcute(string expr, varmap &vm) {
+intValue calculate(string expr, varmap &vm) {
 	if (expr.length() == 0) return null;
 	stack<char> op;
 	stack<intValue> val;
@@ -1229,7 +1252,7 @@ intValue calcute(string expr, varmap &vm) {
 			val.pop();
 			v2 = val.top();
 			val.pop();
-			intValue pres = primary_calcute(v2, mc, v1, vm);
+			intValue pres = primary_calculate(v2, mc, v1, vm);
 			val.push(pres);
 		}
 	};
@@ -1268,7 +1291,7 @@ intValue calcute(string expr, varmap &vm) {
 						v2 = val.top();
 
 						val.pop();
-						intValue pres = primary_calcute(v2, mc, v1, vm);
+						intValue pres = primary_calculate(v2, mc, v1, vm);
 						val.push(pres);
 					}
 					op.pop();	// '('
@@ -1333,7 +1356,7 @@ string curexp(string exp, varmap &myenv) {
 	vector<string> dasher = split(exp, ':', 1);
 	if (dasher.size() == 1) return exp;
 	// Not the connection!
-	return dasher[0] + "." + calcute(dasher[1], myenv).str;
+	return dasher[0] + "." + calculate(dasher[1], myenv).str;
 }
 
 
@@ -1496,7 +1519,7 @@ intValue run(string code, varmap &myenv, string fname) {
 				else if (spl[0] == "view") {
 					dshell_check(2);
 					cout << spl[1] << " = ";
-					calcute(spl[1], myenv).output();
+					calculate(spl[1], myenv).output();
 					cout << endl;
 				}
 				else if (spl[0] == "exec") {
@@ -1567,15 +1590,15 @@ intValue run(string code, varmap &myenv, string fname) {
 		}
 		else if (codexec[0] == "print") {
 			parameter_check(2);
-			cout << calcute(codexec[1], myenv).str;
+			cout << calculate(codexec[1], myenv).str;
 		}
 		else if (codexec[0] == "return") {
 			parameter_check(2);
-			return calcute(codexec[1], myenv);
+			return calculate(codexec[1], myenv);
 		}
 		else if (codexec[0] == "raise") {
 			parameter_check(2);
-			raiseError(calcute(codexec[1], myenv), myenv, fname, execptr + 1, -1, "User define error");
+			raiseError(calculate(codexec[1], myenv), myenv, fname, execptr + 1, -1, "User define error");
 		}
 		else if (codexec[0] == "set" || codexec[0] == "declare") {
 			parameter_check(2);
@@ -1583,7 +1606,7 @@ intValue run(string code, varmap &myenv, string fname) {
 			parameter_check2(2, "set");
 			if (codexec2[0][0] == '$') {
 				codexec2[0].erase(codexec2[0].begin());
-				codexec2[0] = calcute(codexec2[0], myenv).str;
+				codexec2[0] = calculate(codexec2[0], myenv).str;
 			}
 			else if (codexec2[0].find(":") != string::npos) {
 				codexec2[0] = curexp(codexec2[0], myenv);
@@ -1653,18 +1676,18 @@ intValue run(string code, varmap &myenv, string fname) {
 			else if (beginWith(codexec2[1], "__int ")) {
 				vector<string> codexec3 = split(codexec2[1], ' ', 1);
 				parameter_check3(2, "Operator number");
-				myenv[codexec2[0]] = intValue(atof(calcute(codexec3[1], myenv).str.c_str()));
+				myenv[codexec2[0]] = intValue(atof(calculate(codexec3[1], myenv).str.c_str()));
 			}
 			else if (beginWith(codexec2[1], "__chr ")) {
 				vector<string> codexec3 = split(codexec2[1], ' ', 1);
 				parameter_check3(2, "Operator number");
-				char ch = char(int(calcute(codexec3[1], myenv).numeric));
+				char ch = char(int(calculate(codexec3[1], myenv).numeric));
 				myenv[codexec2[0]] = intValue(string({ ch }));
 			}
 			else if (beginWith(codexec2[1], "__ord ")) {
 				vector<string> codexec3 = split(codexec2[1], ' ', 1);
 				parameter_check3(2, "Operator number");
-				intValue cv = calcute(codexec3[1], myenv);
+				intValue cv = calculate(codexec3[1], myenv);
 				if (cv.str.length()) {
 					myenv[codexec2[0]] = intValue(int(char((cv.str[0]))));
 				}
@@ -1675,12 +1698,12 @@ intValue run(string code, varmap &myenv, string fname) {
 			}
 			else if (beginWith(codexec2[1], "__len")) {
 				vector<string> codexec3 = split(codexec2[1], ' ', 1);
-				intValue rsz = calcute(codexec3[1], myenv);
+				intValue rsz = calculate(codexec3[1], myenv);
 				myenv[codexec2[0]] = intValue(rsz.str.length());
 			}
 			else if (beginWith(codexec2[1], "__intg ")) {
 				vector<string> codexec3 = split(codexec2[1], ' ', 1);
-				intValue rsz = calcute(codexec3[1], myenv);
+				intValue rsz = calculate(codexec3[1], myenv);
 				int res = int(rsz.numeric);
 				myenv[codexec2[0]] = intValue(res);
 			}
@@ -1759,7 +1782,7 @@ intValue run(string code, varmap &myenv, string fname) {
 			}
 #pragma endregion
 			else {
-			auto res = calcute(codexec2[1], myenv);
+			auto res = calculate(codexec2[1], myenv);
 			if (res.isObject) {
 				myenv.deserial(codexec2[0], res.str);
 			}
@@ -1775,12 +1798,12 @@ intValue run(string code, varmap &myenv, string fname) {
 			parameter_check2(2, "set");
 			if (codexec2[0][0] == '$') {
 				codexec2[0].erase(codexec2[0].begin());
-				codexec2[0] = calcute(codexec2[0], myenv).str;
+				codexec2[0] = calculate(codexec2[0], myenv).str;
 			}
 			else if (codexec2[0].find(":") != string::npos) {
 				codexec2[0] = curexp(codexec2[0], myenv);
 			}
-			auto res = calcute(codexec2[1], myenv);
+			auto res = calculate(codexec2[1], myenv);
 			if (res.isObject) {
 				myenv.global_deserial(codexec2[0], res.str);
 			}
@@ -1792,7 +1815,7 @@ intValue run(string code, varmap &myenv, string fname) {
 			parameter_check(2);
 			// Certainly you have ':'
 			if (codexec[1].length()) codexec[1].pop_back();
-			if (calcute(codexec[1], myenv).boolean()) {
+			if (calculate(codexec[1], myenv).boolean()) {
 				// True, go on execution, and set jumper to the end of else before any else / elif
 				size_t rptr = execptr;								// Where our code ends
 				while (rptr < codestream.size() - 1 && getIndentRaw(codestream[++rptr]) > ind);	// Go on until aligned else / elif
@@ -1884,12 +1907,12 @@ intValue run(string code, varmap &myenv, string fname) {
 		}
 		else if (codexec[0] == "run") {
 			parameter_check(2);
-			calcute(codexec[1], myenv);
+			calculate(codexec[1], myenv);
 		}
 		else if (codexec[0] == "while") {
 			parameter_check(2);
 			if (codexec[1].length()) codexec[1].pop_back();
-			if (calcute(codexec[1], myenv).boolean()) {
+			if (calculate(codexec[1], myenv).boolean()) {
 				// True, go on execution, and set jumper to here at the end.
 				// must have a acceptable line.
 				size_t eptr = execptr;
@@ -1993,15 +2016,15 @@ intValue run(string code, varmap &myenv, string fname) {
 			}
 			vector<string> rangeobj = split(codexec2[1], '~');
 			intValue stepper = 1, current;
-			if (rangeobj.size() >= 3) stepper = calcute(rangeobj[2], myenv);
+			if (rangeobj.size() >= 3) stepper = calculate(rangeobj[2], myenv);
 			if (myenv[codexec2[0]].isNull) {
-				current = intValue(calcute(rangeobj[0], myenv).numeric);
+				current = intValue(calculate(rangeobj[0], myenv).numeric);
 			}
 			else {
 				current = intValue(myenv[codexec2[0]].numeric + stepper.numeric);
 			}
 			myenv[codexec2[0]] = current;
-			if (myenv[codexec2[0]].numeric == calcute(rangeobj[1], myenv).numeric) {
+			if (myenv[codexec2[0]].numeric == calculate(rangeobj[1], myenv).numeric) {
 				// Jump where end-of-loop
 				myenv.tree_clean(codexec2[0]);
 				noroll = true; //  End of statements' life
@@ -2063,7 +2086,7 @@ intValue run(string code, varmap &myenv, string fname) {
 			parameter_check(2);
 			string &op = codexec2[0];
 			if (op == "close") {
-				int f = calcute(codexec2[1], myenv).numeric;
+				int f = calculate(codexec2[1], myenv).numeric;
 				if (files.count(f)) {
 					fclose(files[f]);
 					files.erase(f);
@@ -2078,9 +2101,9 @@ intValue run(string code, varmap &myenv, string fname) {
 			}
 			else if (op == "write") {
 				codexec3 = split(codexec2[1], ',', 1);
-				int f = calcute(codexec3[0], myenv).numeric;
+				int f = calculate(codexec3[0], myenv).numeric;
 				if (files.count(f)) {
-					fputs(calcute(codexec3[1], myenv).str.c_str(), files[f]);
+					fputs(calculate(codexec3[1], myenv).str.c_str(), files[f]);
 				}
 				else {
 					raise_ce("Incorrect file: " + to_string(f));
@@ -2098,9 +2121,9 @@ intValue run(string code, varmap &myenv, string fname) {
 						codexec3[0] = curexp(codexec3[0], myenv);
 					}
 					myenv[codexec3[0]] = intValue(n);
-					intValue ca = calcute(codexec4[0], myenv);
+					intValue ca = calculate(codexec4[0], myenv);
 					string fn = ca.str;
-					string op = calcute(codexec4[1], myenv).str;
+					string op = calculate(codexec4[1], myenv).str;
 					files[n] = fopen(fn.c_str(), op.c_str());
 					if (files[n] == NULL || feof(files[n])) {
 						//cout << "Cannot open file " << fn << " as " << n << ", errno: " << errno << endl;
@@ -2111,7 +2134,7 @@ intValue run(string code, varmap &myenv, string fname) {
 				else if (op == "read") {
 					// file read [store]=[var]
 					codexec3 = split(codexec2[1], '=', 1);
-					int fid = calcute(codexec3[1], myenv).numeric;
+					int fid = calculate(codexec3[1], myenv).numeric;
 					bool rs = files.count(fid) ? feof(files[fid]) : 0;
 					if (files.count(fid) && !rs) {
 						string res = "";
@@ -2132,7 +2155,7 @@ intValue run(string code, varmap &myenv, string fname) {
 					if (codexec3[0].find(":") != string::npos) {
 						codexec3[0] = curexp(codexec3[0], myenv);
 					}
-					int fid = calcute(codexec3[1], myenv).numeric;
+					int fid = calculate(codexec3[1], myenv).numeric;
 					bool rs = files.count(fid) ? (!feof(files[fid])) : 0;
 					if (files.count(fid) && rs) {
 						myenv[codexec3[0]] = intValue(1);
@@ -2144,7 +2167,7 @@ intValue run(string code, varmap &myenv, string fname) {
 				else if (op == "len") {
 					// file len [store]=[var]
 					codexec3 = split(codexec2[1], '=', 1);
-					int fid = calcute(codexec3[1], myenv).numeric;
+					int fid = calculate(codexec3[1], myenv).numeric;
 					bool rs = files.count(fid) ? feof(files[fid]) : 0;
 					if (files.count(fid) && !rs) {
 						myenv[codexec3[0]] = intValue(getLength(fid));
@@ -2156,7 +2179,7 @@ intValue run(string code, varmap &myenv, string fname) {
 				else if (op == "binary_read") {
 					// file binary_read [store list]=[var]
 					codexec3 = split(codexec2[1], '=', 1);
-					int fid = calcute(codexec3[1], myenv).numeric;
+					int fid = calculate(codexec3[1], myenv).numeric;
 					bool rs = files.count(fid) ? feof(files[fid]) : 0;
 					if (files.count(fid) && !rs) {
 						size_t len = getLength(fid);
@@ -2183,7 +2206,7 @@ intValue run(string code, varmap &myenv, string fname) {
 					// file binary_write [fid],[list data]
 					//codexec3 = split(codexec2[1], '=', 1);
 					vector<string> codexec4 = split(codexec2[1], ',', 1);
-					int fid = calcute(codexec4[0], myenv).numeric;
+					int fid = calculate(codexec4[0], myenv).numeric;
 					bool rs = files.count(fid) ? feof(files[fid]) : 0;
 					if (files.count(fid) && !rs) {
 						if (codexec4[1].find(":") != string::npos) {
@@ -2214,7 +2237,7 @@ intValue run(string code, varmap &myenv, string fname) {
 			// Do nothing
 		}
 		else if (codexec[0] == "__dev__") {
-			if (codexec[1] == "time_set") {
+			if (codexec.size() >= 2 && codexec[1] == "time_set") {
 				SYSTEMTIME sys;
 				GetLocalTime(&sys);
 				myenv["this.year"] = intValue(sys.wYear);
@@ -2269,7 +2292,7 @@ intValue run(string code, varmap &myenv, string fname) {
 		}
 		else {
 			// = run ...
-			calcute(prerun, myenv);
+			calculate(prerun, myenv);
 		}
 	add_exp: if (jmptable.count(execptr)) {
 		execptr = jmptable[execptr];
@@ -2308,28 +2331,31 @@ intValue preRun(string code, varmap &myenv, map<string, intValue> required_globa
 #pragma endregion
 #pragma region Preset calls
 	intcalls["sleep"] = [](string args, varmap &env) -> intValue {
-		Sleep(DWORD(calcute(args, env).numeric));
+		Sleep(DWORD(calculate(args, env).numeric));
 		return null;
 	};
 	intcalls["system"] = [](string args, varmap &env) -> intValue {
-		system(calcute(args, env).str.c_str());
+		system(calculate(args, env).str.c_str());
 		return null;
 	};
 	intcalls["exit"] = [](string args, varmap &env) -> intValue {
-		exit(int(calcute(args, env).numeric));
+		exit(int(calculate(args, env).numeric));
 		return null;
 	};
 	intcalls["set_color"] = [](string args, varmap &env) -> intValue {
-		setColor(DWORD(calcute(args, env).numeric));
+		setColor(DWORD(calculate(args, env).numeric));
 		return null;
 	};
 	// Remind you that eval is dangerous!
 	intcalls["eval"] = [](string args, varmap &env) -> intValue {
-		return run(calcute(args, env).str, env, "Internal eval()");
+		return run(calculate(args, env).str, env, "Internal eval()");
+	};
+	intcalls["__bnot"] = [](string args, varmap &env) -> intValue {
+		return ~ulong64(calculate(args, env).numeric);
 	};
 	// It is better to add more functions by intcalls, not set
 #define math_extension(funame) intcalls["_maths_" #funame] = [](string args, varmap &env) -> intValue { \
-		return intValue(funame(calcute(args, env).numeric)); \
+		return intValue(funame(calculate(args, env).numeric)); \
 	}
 	math_extension(sin);
 	math_extension(cos);
@@ -2339,7 +2365,7 @@ intValue preRun(string code, varmap &myenv, map<string, intValue> required_globa
 	math_extension(atan);
 	math_extension(sqrt);
 	intcalls["_trim"] = [](string args, varmap &env) -> intValue {
-		string s = calcute(args, env).str;
+		string s = calculate(args, env).str;
 		while (s.length() && to_trim.count(s[s.length() - 1])) s.pop_back();
 		size_t spl;
 		for (spl = 0; spl < s.length(); spl++) if (!to_trim.count(s[spl])) break;
@@ -2680,13 +2706,13 @@ int main(int argc, char* argv[]) {
 	const string blue_end = "?>";
 
 	auto initial_echo = [](string exp, varmap &env) -> intValue {
-		intValue output = calcute(exp, env);
+		intValue output = calculate(exp, env);
 		header += output.str;
 		return null;
 	};
 
 	auto normal_echo = [](string exp, varmap &env) -> intValue {
-		intValue output = calcute(exp, env);
+		intValue output = calculate(exp, env);
 		content += output.str;
 		return null;
 	};
