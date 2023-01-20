@@ -385,7 +385,7 @@ NoExecuted: ' This is a connection between BluePage and host server.
             Dim DoUTFConvert As Boolean = AlwaysRunConverts
             Try
                 If My.Computer.FileSystem.FileExists(ActiveCommander) Then
-                    Dim MyCommanderStream As StreamReader = My.Computer.FileSystem.OpenTextFileReader(ActiveCommander)
+                    Dim MyCommanderStream As StreamReader = My.Computer.FileSystem.OpenTextFileReader(ActiveCommander, [Default])
                     While Not MyCommanderStream.EndOfStream
                         Dim CurrentCommand As String = MyCommanderStream.ReadLine()
                         Dim CurrentSplit As String() = Split(CurrentCommand, " ", 2)

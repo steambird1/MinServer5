@@ -56,6 +56,7 @@ function mins_dealing(content) {
         try {
             var spld = spls[i].trimLeft();
             var orderer = spld.split(" ", 2);
+            if (orderer.length < 2) continue;
             var curs = orderer[1].split("=", 2);
             switch (orderer[0]) {
                 case "@control":
