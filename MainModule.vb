@@ -55,7 +55,7 @@ Module MainModule
                 Console.Out.WriteLine()
                 Console.Out.Write("With BlueBetter and BluePage interpreter")
                 Console.Out.WriteLine()
-                Console.Out.Write("Version 1.11")
+                Console.Out.Write("Version 1.12")
                 Console.Out.WriteLine()
                 End
             ElseIf SplResult(0) = "--port" Then
@@ -281,6 +281,8 @@ NormalResolver: Dim MyExtension As String = GetExtension(MyScript)
                     ActiveScript.Write("set " & TempName & "=new post_data")
                     ActiveScript.WriteLine()
                     ActiveScript.Write("set " & TempName & ".name=" & SetQuotes(i.FieldName))
+                    ActiveScript.WriteLine()
+                    ActiveScript.Write("set " & TempName & ".file_name=" & SetQuotes(i.FileName))
                     ActiveScript.WriteLine()
                     ' Get file for it
                     Dim CurrentFilename As String = GenerateRandom(DirectoryToBluebetter)

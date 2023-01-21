@@ -258,6 +258,34 @@ Module WebInterpreter
                 Public Property Settings As Dictionary(Of String, String)
                 Public Property Content As WebString
 
+                ' Only available when it's a file
+                Public ReadOnly Property FileName As String
+                    Get
+                        If Not Me.Settings.ContainsKey("Content-Disposition") Then
+                            Return ""
+                        End If
+                        Dim cd As String = Me.Settings("Content-Disposition")
+                        Dim spl As String() = Split(cd, ";")
+                        ' Is like [normal]; name=[name]; <filename=[filename]>
+                        If spl.Count() < 3 Then
+                            Return ""
+                        End If
+                        Try
+                            spl(2) = Split(spl(2), "=", 2)(1)
+                            Dim t As String = Trim(spl(2))
+                            While t.Length > 0 AndAlso (t(0) = """" OrElse t(0) = vbCr OrElse t(0) = vbLf)
+                                t = t.Remove(0, 1)
+                            End While
+                            While t.Length > 0 AndAlso (t(t.Length - 1) = """" OrElse t(t.Length - 1) = vbCr OrElse t(t.Length - 1) = vbLf)
+                                t = t.Remove(t.Length - 1)
+                            End While
+                            Return t
+                        Catch ex As IndexOutOfRangeException
+                            Return ""
+                        End Try
+                    End Get
+                End Property
+
                 Public ReadOnly Property FieldName As String
                     Get
                         If Not Me.Settings.ContainsKey("Content-Disposition") Then
@@ -265,7 +293,7 @@ Module WebInterpreter
                         End If
                         Dim cd As String = Me.Settings("Content-Disposition")
                         Dim spl As String() = Split(cd, ";")
-                        ' Is like [normal]; name=[name]
+                        ' Is like [normal]; name=[name]; <filename=[filename]>
                         If spl.Count() < 2 Then
                             Return ""
                         End If
