@@ -1436,9 +1436,8 @@ intValue calculate(string expr, varmap &vm) {
 						cur_neg = false;
 					}	// Dealing with connecting operators like ||, &&.
 					else if (!op.empty()) {	// Can't have something like &a& -> a&&
-						string top_op = op.top();
-						if (top_op.length()) {
-							switch (top_op[0]) {
+						if (i > 0 && priority(expr[i - 1]) >= 0) {
+							switch (expr[i - 1]) {
 							case '&':
 								if (expr[i] == '&') {
 									op.pop();
@@ -1461,9 +1460,9 @@ intValue calculate(string expr, varmap &vm) {
 								}
 								// PASSTHROUGH FOR << or <=
 							case '>':
-								if (expr[i] == '=' || expr[i] == top_op[0]) {
+								if (expr[i] == '=' || expr[i] == expr[i - 1]) {
 									op.pop();
-									op.push({ top_op[0], expr[i] });
+									op.push({ expr[i - 1], expr[i] });
 									goto end_of_pusher;
 								}
 								break;
@@ -2573,17 +2572,25 @@ intValue run(string code, varmap &myenv, string fname) {
 			// Do nothing
 		}
 		else if (codexec[0] == "__dev__") {
-			if (codexec.size() >= 2 && codexec[1] == "time_set") {
-				SYSTEMTIME sys;
-				GetLocalTime(&sys);
-				myenv["this.year"] = intValue(sys.wYear);
-				myenv["this.month"] = intValue(sys.wMonth);
-				myenv["this.day"] = intValue(sys.wDay);
-				myenv["this.hour"] = intValue(sys.wHour);
-				myenv["this.minute"] = intValue(sys.wMinute);
-				myenv["this.second"] = intValue(sys.wSecond);
-				myenv["this.ms"] = intValue(sys.wMilliseconds);
-				myenv["this.week"] = intValue(sys.wDayOfWeek);
+			if (codexec.size() >= 2) {
+				if (codexec[1] == "time_set") {
+					SYSTEMTIME sys;
+					GetLocalTime(&sys);
+					myenv["this.year"] = intValue(sys.wYear);
+					myenv["this.month"] = intValue(sys.wMonth);
+					myenv["this.day"] = intValue(sys.wDay);
+					myenv["this.hour"] = intValue(sys.wHour);
+					myenv["this.minute"] = intValue(sys.wMinute);
+					myenv["this.second"] = intValue(sys.wSecond);
+					myenv["this.ms"] = intValue(sys.wMilliseconds);
+					myenv["this.week"] = intValue(sys.wDayOfWeek);
+				}
+				else if (beginWith(codexec[1], "bad_property")) {
+					vector<string> codexec2 = split(codexec[1], ' ', 1);
+					raiseError(null, myenv, fname, 0, __LINE__, "Bad use of property " + codexec2[1] + " (this might be because the method is disallowed)");
+					return null;	// For GET attempts
+				}
+				
 			}
 			else {
 				specialout();
@@ -2893,7 +2900,7 @@ intValue preRun(string code, varmap &myenv, map<string, intValue> required_globa
 				parameter_check(3);
 				fun_indent = 1 + bool(curclass.length());
 				if (codexec[2][codexec[2].length() - 1] == '\n') codexec[2].pop_back();
-				codexec[2].pop_back(); // ':'
+				if (codexec[2][codexec[2].length() - 1] == ':') codexec[2].pop_back(); // ':'
 				//myenv[curclass + codexec[2] + ".__is_prop__"] = intValue("1");
 				myenv.set_global(curclass + codexec[2] + ".__is_prop__", intValue("1"), true);
 				if (codexec[1] == "get") {
@@ -2903,6 +2910,18 @@ intValue preRun(string code, varmap &myenv, map<string, intValue> required_globa
 				else if (codexec[1] == "set") {
 					cfname = curclass + codexec[2] + ".__setter__";
 					cfargs = "value";
+				}
+				else if (codexec[1] == "noget") {
+					string tcf = curclass + codexec[2];
+					myenv.set_global(tcf, intValue("__dev__ bad_property " + tcf));
+					myenv.set_global(tcf + ".__type__", intValue("function"), true);
+					myenv.set_global(tcf + ".__arg__", intValue(""), true);
+				}
+				else if (codexec[1] == "noset") {
+					string tcf = curclass + codexec[2] + ".__setter__";
+					myenv.set_global(tcf, intValue("__dev__ bad_property " + curclass + codexec[2]));
+					myenv.set_global(tcf + ".__type__", intValue("function"), true);
+					myenv.set_global(tcf + ".__arg__", intValue("value"), true);
 				}
 				else {
 					raise_ce("Bad property");
@@ -2956,7 +2975,7 @@ int main(int argc, char* argv[]) {
 	in_debug = false;
 	no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 5.0\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.19\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
+	string version_info = string("BluePage Interpreter\nVersion 5.0\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.20\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
 #pragma endregion
 	// End
 
