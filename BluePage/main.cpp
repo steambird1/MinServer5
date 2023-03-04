@@ -43,6 +43,7 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote = false);
 void generateClass(string variable, string classname, varmap &myenv, bool run_init = true);
 string curexp(string exp, varmap &myenv);
 string auto_curexp(string exp, varmap &myenv);
+int random();
 
 HANDLE stdouth;
 DWORD precolor = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN, nowcolor = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN;
@@ -339,7 +340,8 @@ public:
 		return false;
 	}
 	// Before call THIS check it
-	void set_referrer(string here_name, referrer ref) {
+	// return TRUE if success or FALSE if fail £¨Unused currently)
+	bool set_referrer(string here_name, referrer ref) {
 		// As a template, replace others ...
 		size_t last_pos = here_name.find_last_of('.');
 		vector<string> spls = { here_name.substr(0, last_pos), "" };
@@ -354,6 +356,7 @@ public:
 		else {
 			this->ref[here_name] = ref;
 		}
+		return true;
 	}
 	void set_referrer(string here_name, string origin_name, varmap *origin) {
 		if (here_name == "" || origin_name == "" || origin == nullptr) return;
@@ -558,8 +561,18 @@ public:
 		auto &refs = transform_from.ref[transform_from_referrer];
 		this->set_referrer(here_name, refs.origin_name, refs.source);
 	}
-	static void set_global(string key, value_type value) {
+	// constant here is used for internal libraries.
+	static void set_global(string key, value_type value, bool constant = false) {
 		glob_vs[key] = value;
+		if (constant) glob_vs[key + ".__const__"] = intValue("1");
+	}
+	// Generate a unused random name.
+	string generate() {
+		string name;
+		do {
+			name = this->mygenerate + to_string(random());
+		} while (this->count(name));
+		return name;
 	}
 	static void declare_global(string key) {
 		set_global(key, null);
@@ -613,6 +626,9 @@ public:
 		// Where 'this' points. use '.'
 
 	const string mymagic = "__object$\n";
+	const string mygenerate = "__generate_";
+	const set<string> unserial = { "", "function", "class", "null" };
+
 private:
 	vector<value_type> get_member_from(single_mapper &obj, string name, bool force_show = false) {
 		vector<value_type> result;
@@ -692,7 +708,6 @@ private:
 		}
 		return intValue(tmp);
 	}
-	const set<string> unserial = { "", "function", "class", "null" };
 	static pair<string, string> get_dot(string expr) {
 		size_t last_pos = expr.find_last_of('.');
 		pair<string, string> spls = { expr.substr(0, last_pos), "" };
@@ -1090,6 +1105,9 @@ int priority(char op) {
 	case '(':
 		return 0;
 		break;
+	case '.':
+		return -2;				// Special non-operator dealling by calculate()
+		break;
 	default:
 		return -1;
 	}
@@ -1297,6 +1315,9 @@ intValue calculate(string expr, varmap &vm) {
 	bool cur_neg = false, qmode = false, dmode = false;
 	int ignore = 0, op_pr;
 
+	// Making tempatory environment
+	vm.push();
+
 	auto auto_push = [&]() {
 		if (cur_neg) {
 			val.push(getValue(operand, vm).negative());
@@ -1387,15 +1408,33 @@ intValue calculate(string expr, varmap &vm) {
 					}
 				}
 				else {
-					if (operand.length()) {
-						if (expr[i] == ':') {
+					if (expr[i] == ':') {
+						if (i > 0 && expr[i - 1] == ')') {
+							// Getting the value from the stack
+							auto obj = val.top();
+							if (obj.isObject) {
+								val.pop();
+								string gen = vm.generate();
+								vm.deserial(gen, obj.str);
+								val.push(intValue(gen));
+							}
+							else {
+								raise_gv_ce("Cannot get a member from non-object thing");
+							}
+
+						}
+						else if (operand.length()) {
 							val.push(intValue(operand));
 						}
 						else {
-							auto_push();
+							raise_gv_ce("Cannot use ':' without any object");
 						}
 						cur_neg = false;
 					}
+					else if (operand.length()) {	// Can't be things like || or &&
+						auto_push();
+						cur_neg = false;
+					}	// Dealing with connecting operators like ||, &&.
 					else if (!op.empty()) {	// Can't have something like &a& -> a&&
 						string top_op = op.top();
 						if (top_op.length()) {
@@ -1444,6 +1483,19 @@ intValue calculate(string expr, varmap &vm) {
 			}
 
 		}
+		else if (i > 0 && expr[i] == '.' && expr[i - 1] == ')') {
+			// Should have operand clear. Dealling with non-operator '.'
+			auto obj = val.top();
+			if (obj.isObject) {
+				val.pop();
+				string gen = vm.generate();
+				vm.deserial(gen, obj.str);
+				operand += gen + '.';
+			}
+			else {
+				raise_gv_ce("Cannot get a member from non-object thing");
+			}
+		}
 		else {
 			operand += expr[i];
 		}
@@ -1453,8 +1505,11 @@ intValue calculate(string expr, varmap &vm) {
 		cur_neg = false;
 	}
 	auto_pop();
+	vm.pop();			// Reverting
 	return val.top();
 }
+
+
 #define parameter_check(req) do {if (codexec.size() < req) {raise_ce("Error: required parameter not given") ;return null;}} while (false)
 #define parameter_check2(req,ext) do {if (codexec2.size() < req) {raise_ce(string("Error: required parameter not given in sub command ") + ext); return null;}} while (false)
 #define parameter_check3(req,ext) do {if (codexec3.size() < req) {raise_ce(string("Error: required parameter not given in sub command ") + ext); return null;}} while (false)
@@ -1686,7 +1741,7 @@ intValue run(string code, varmap &myenv, string fname) {
 		string prerun = cep;
 		getIndent(prerun);	//?
 		if (codexec.size() <= 0 || codexec[0][0] == '#') goto add_exp;	// Be proceed as command
-		else if (codexec[0] == "class" || codexec[0] == "function" || codexec[0] == "error_handler:") {
+		else if (codexec[0] == "class" || codexec[0] == "function" || codexec[0] == "property" || codexec[0] == "error_handler:") {
 			string s = "";
 			do {
 				if (execptr >= codestream.size() - 1) {
@@ -1702,7 +1757,7 @@ intValue run(string code, varmap &myenv, string fname) {
 			cout << calculate(codexec[1], myenv).str;
 		}
 		else if (codexec[0] == "return") {
-			parameter_check(2);
+			if (codexec.size() < 2) return null;
 			return calculate(codexec[1], myenv);
 		}
 		else if (codexec[0] == "raise") {
@@ -1710,9 +1765,16 @@ intValue run(string code, varmap &myenv, string fname) {
 			raiseError(calculate(codexec[1], myenv), myenv, fname, execptr + 1, -1, "User define error");
 		}
 		else if (codexec[0] == "set" || codexec[0] == "declare") {
+			static const string const_sign = "const ";	// set a=const ...
 			parameter_check(2);
 			vector<string> codexec2 = split(codexec[1], '=', 1);
+			parameter_check2(2, codexec[0]);
 			string external_op = "", &czero = codexec2[0];
+			bool constant = false;
+			if (beginWith(codexec2[1], const_sign)) {
+				constant = true;
+				codexec2[1] = codexec2[1].substr(const_sign.length());
+			}
 			char det;
 			// Only 2 layers' detect, reversely
 			if (czero.length() >= 2 && priority(det = czero[czero.length() - 1]) > 0) {
@@ -1730,6 +1792,14 @@ intValue run(string code, varmap &myenv, string fname) {
 			}
 			else if (codexec2[0].find(":") != string::npos) {
 				codexec2[0] = curexp(codexec2[0], myenv);
+			}
+			// End of resolver
+			if (codexec2[0].find(".__const__") != string::npos || myenv[codexec2[0] + ".__const__"].str == "1") {
+				raise_ce(string("Cannot set a value of constant: ") + codexec2[0]);
+				goto add_exp;
+			}
+			if (constant) {
+				myenv[codexec2[0] + ".__const__"] = intValue("1");
 			}
 			if (codexec[0] == "declare") {
 				myenv.declare(codexec2[0]);
@@ -1903,7 +1973,77 @@ intValue run(string code, varmap &myenv, string fname) {
 #pragma endregion
 			else {
 				auto res = calculate(codexec2[1], myenv);
-				if (res.isObject) {
+				// Turn to origin setter
+				// If use class, head_part will be 'this'.
+				string osetter = codexec2[0], head_part = codexec2[0], tail_part = "";
+				bool using_class = false;
+
+				// Always split like [a.b].[c] (c: Member, a.b: Father, to find class)
+				auto spoint = codexec2[0].rfind('.');
+				if (spoint != string::npos) {
+					head_part = codexec2[0].substr(0, spoint);
+					tail_part = codexec2[0].substr(spoint + 1);	// Both of them don't have '.'
+					string htype = myenv[head_part + ".__type__"].str;
+					if (!myenv.unserial.count(htype)) {
+						using_class = true;
+						osetter = htype + '.' + tail_part;
+					}
+				}
+
+				if (myenv[osetter + ".__is_prop__"].str == "1") {
+					// Is property, call function setter
+					varmap nvm, ngvm;
+					nvm.push();
+					ngvm.push();
+					if (using_class) {
+						nvm.set_this(&myenv, head_part);
+						ngvm.set_this(&myenv, head_part);
+					}
+
+					auto __res_dealer = [&nvm, &res]() {
+						if (res.isObject) {
+							nvm.deserial("value", res.str);
+						}
+						else {
+							nvm["value"] = res;
+						}
+					};
+
+					__res_dealer();
+					if (external_op.length()) {
+
+						auto original_value = run(myenv[osetter].str, ngvm, string("Property Get:") + codexec2[0] + " while setting");
+						res = primary_calculate(original_value, external_op, res, ngvm);	//?
+						__res_dealer();
+					}
+					run(myenv[osetter + ".__setter__"].str, nvm, string("Property Set:") + codexec2[0]);
+
+					/*varmap nvm;
+					nvm.push();
+					string tname = myenv.generate();
+					myenv.declare(tname);
+
+					auto __res_dealer = [&]() {
+						if (res.isObject) {
+							myenv.deserial(tname, res.str);
+						}
+						else {
+							myenv[tname] = res;
+						}
+					};
+
+					__res_dealer();
+					// Get the getter if required
+					if (external_op.length()) {
+						// Property get doesn't need it. Isolate.
+						auto original_value = run(myenv[osetter].str, nvm, string("Property Get:") + codexec2[0] + " while setting");
+						res = primary_calculate(original_value, external_op, res, nvm);	//?
+						__res_dealer();
+					}
+					calculate(osetter + ".__setter__ " + tname, myenv);	// Will directly set
+					*/
+				}
+				else if (res.isObject) {
 					if (external_op.length()) {
 						raise_ce("Warning: using operators like +=, -=, *= for object is meaningless");
 					}
@@ -2510,16 +2650,19 @@ intValue preRun(string code, varmap &myenv, map<string, intValue> required_globa
 	myenv.push();
 	// Preset constants
 #pragma region Preset constants
-	myenv.set_global("LF", intValue("\n"));
-	myenv.set_global("TAB", intValue("\t"));
-	myenv.set_global("BKSP", intValue("\b"));
-	myenv.set_global("ALERT", intValue("\a"));
-	myenv.set_global("CLOCKS_PER_SEC", intValue(CLOCKS_PER_SEC));
-	myenv.set_global("true", intValue(1));
-	myenv.set_global("false", intValue(0));
+	myenv.set_global("LF", intValue("\n"), true);
+	myenv.set_global("TAB", intValue("\t"), true);
+	myenv.set_global("BKSP", intValue("\b"), true);
+	myenv.set_global("ALERT", intValue("\a"), true);
+	myenv.set_global("RBACK", intValue("\r"), true);
+	myenv.set_global("CLOCKS_PER_SEC", intValue(CLOCKS_PER_SEC), true);
+	myenv.set_global("true", intValue(1), true);
+	myenv.set_global("false", intValue(0), true);
+	// Replacable:
 	myenv.set_global("err.__type__", intValue("exception"));			// Error information
 	myenv.set_global("__error_handler__", intValue("call set_color,14\nprint err.description+LF+err.value+LF\ncall set_color,7"));	// Preset error handler
-	myenv.set_global("__file__", intValue(env_name));
+	// End of replacable
+	myenv.set_global("__file__", intValue(env_name), true);
 	// Insert more global variable
 	for (auto &i : required_global) {
 		myenv.set_global(i.first, i.second);
@@ -2622,9 +2765,10 @@ intValue preRun(string code, varmap &myenv, map<string, intValue> required_globa
 		else {
 			if (cfname.length()) {
 				myenv.set_global(cfname, intValue(curfun));
-				myenv.set_global(cfname + ".__type__", intValue("function"));
-				myenv.set_global(cfname + ".__arg__", cfargs);
+				myenv.set_global(cfname + ".__type__", intValue("function"), true);
+				myenv.set_global(cfname + ".__arg__", cfargs, true);
 			}
+
 
 			cfname = "";
 			curfun = "";
@@ -2743,13 +2887,34 @@ intValue preRun(string code, varmap &myenv, map<string, intValue> required_globa
 				}
 				cfname = curclass + codexec[1];
 			}
+			// property [get|set] ...: <function body>
+			// For <setter> use <value> as parameter
+			else if (codexec[0] == "property") {
+				parameter_check(3);
+				fun_indent = 1 + bool(curclass.length());
+				if (codexec[2][codexec[2].length() - 1] == '\n') codexec[2].pop_back();
+				codexec[2].pop_back(); // ':'
+				//myenv[curclass + codexec[2] + ".__is_prop__"] = intValue("1");
+				myenv.set_global(curclass + codexec[2] + ".__is_prop__", intValue("1"), true);
+				if (codexec[1] == "get") {
+					cfname = curclass + codexec[2];
+					cfargs = "";
+				}
+				else if (codexec[1] == "set") {
+					cfname = curclass + codexec[2] + ".__setter__";
+					cfargs = "value";
+				}
+				else {
+					raise_ce("Bad property");
+				}
+			}
 		}
 
 	}
 	if (cfname.length()) {
 		myenv.set_global(cfname, curfun);
-		myenv.set_global(cfname + ".__type__", intValue("function"));
-		myenv.set_global(cfname + ".__arg__", cfargs);
+		myenv.set_global(cfname + ".__type__", intValue("function"), true);
+		myenv.set_global(cfname + ".__arg__", cfargs, true);
 	}
 
 	//return null;
@@ -2791,7 +2956,7 @@ int main(int argc, char* argv[]) {
 	in_debug = false;
 	no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 4.0d\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.18\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
+	string version_info = string("BluePage Interpreter\nVersion 5.0\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.19\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
 #pragma endregion
 	// End
 

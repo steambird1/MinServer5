@@ -136,6 +136,7 @@
     <None Include="algo.blue" />
     <None Include="BluePage.blue" />
     <None Include="bmain.blue" />
+    <None Include="math.blue" />
     <None Include="Postback.js" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
