@@ -267,3 +267,6 @@ __pycache__/
 /BluePage/test1.txt
 /BluePage/test1.bp
 /BluePage/test1.html
+
+# Coming soon:
+/BluePage/document.blue
