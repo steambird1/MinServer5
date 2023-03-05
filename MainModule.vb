@@ -4,6 +4,7 @@ Imports System.Threading
 Imports System.IO
 Imports System.Net
 Imports System.Text
+Imports System.Text.RegularExpressions
 
 Module MainModule
 
@@ -21,6 +22,7 @@ Module MainModule
     Public Port As Integer = 80                             ' Default port
     Public AlwaysRunConverts As Boolean = False
     Public Const PostBackEntry As String = "MinServerPostBack"
+    Public DisallowLists As List(Of String) = New List(Of String) ' Providing RegEx!
     'Private lock As Threading.SpinLock = New SpinLock()
 
     Private Sub InitalizeContents()
@@ -55,7 +57,7 @@ Module MainModule
                 Console.Out.WriteLine()
                 Console.Out.Write("With BlueBetter and BluePage interpreter")
                 Console.Out.WriteLine()
-                Console.Out.Write("Version 1.12")
+                Console.Out.Write("Version 1.13")
                 Console.Out.WriteLine()
                 End
             ElseIf SplResult(0) = "--port" Then
@@ -72,15 +74,22 @@ Module MainModule
                     Continue For
                 End If
                 contents.Add(ConAlias(0), ConAlias(1))
-            ElseIf i = "--converts" Then
+            ElseIf SplResult(0) = "--converts" Then
                 If SplResult.Count() < 2 Then
                     Continue For
                 End If
                 ConvertableFiles.Add(SplResult(1))
+            ElseIf SplResult(0) = "--disallow" Then
+                If SplResult.Count() < 2 Then
+                    Continue For
+                End If
+                DisallowLists.Add(SplResult(1))
             ElseIf SplResult(0) = "--500" Then
                 InternalServerPath = SplResult(1)
             ElseIf SplResult(0) = "--404" Then
                 NotFoundPath = SplResult(1)
+            ElseIf SplResult(0) = "--403" Then
+                ForbiddenPath = SplResult(1)
             End If
 
         Next
@@ -130,6 +139,7 @@ Module MainModule
     Public Property DefaultServerErrorPath As String = pather & "\500.html"   ' If actives twice call this.
     Public Property InternalServerPath As String = pather & "\500.html"
     Public Property NotFoundPath As String = pather & "\404.html"
+    Public Property ForbiddenPath As String = pather & "\403.html"
 
     Sub AsyncRequestProcessor(Parameter As IAsyncResult)
         Dim tcp As TcpListener = CType(Parameter.AsyncState, TcpListener)
@@ -203,12 +213,20 @@ Module MainModule
         Dim ExternalOption As String = ""
         Dim IsServerError As Boolean = False
         If IsNothing(MyScript) Then
-            ShowWarning("404: " & MyScript)
+            ShowWarning("404: " & MyWebInfo.Path)
             'MySenderData = New WebString(NotFoundError)
             'GoTo BeginWriting
 NotFoundError: MyScript = NotFoundPath
             ExternalOption = " --const:ERROR=404"
         End If
+        ' Check 403
+        For Each i In DisallowLists
+            If Regex.IsMatch(MyScript, i, RegexOptions.IgnoreCase) Then
+                ShowWarning("403: " & MyWebInfo.Path & " (Satisfies: " & i & ")")
+                MyScript = ForbiddenPath
+                ExternalOption = " --const:ERROR=403"
+            End If
+        Next
 NormalResolver: Dim MyExtension As String = GetExtension(MyScript)
         Dim DocKind As String = GetDocumentKind(MyExtension)
 
