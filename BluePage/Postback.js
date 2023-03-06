@@ -63,6 +63,24 @@ function mins_dealing(content) {
                     var left_name = curs[0].split(".", 2);
                     document.getElementById(left_name[0])[left_name[1]] = mins_destrify(curs[1]);
                     break;
+                case "@control_int":
+                    var left_name = curs[0].split(".", 2);
+                    var obj_mod = document.getElementById(left_name[0]);
+                    var cr = curs[1];
+                    switch (cr) {
+                        case "null":
+                            obj_mod[left_name[1]] = null;
+                            break;
+                        case "true":
+                            obj_mod[left_name[1]] = true;
+                            break;
+                        case "false":
+                            obj_mod[left_name[1]] = false;
+                            break;
+                        default:
+                            obj_mod[left_name[1]] = parseInt(cr);
+                    }
+                    break;
                 case "@job":
                     window[curs[0]](mins_destrify(curs[1]));
                     break;
