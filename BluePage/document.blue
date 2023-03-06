@@ -1,0 +1,207 @@
+﻿class __element_style:
+	shared maker
+	init:
+		set this.data=new dict
+		set this.expr=""
+	function update:
+		set m=membersof this.data
+		set this.expr=""
+		for i=0~m.length:
+			set this.expr+=m:i+": "+this.data:(m:i)+";"
+	function get key:
+		return this.data:key
+	function set key value:
+		set this.data:key=value
+		this.update
+	function maker style_desc:
+		set tmp=new __element_style
+		set re=split style_desc,";",-1
+		for i=0~re.length:
+			set div=split (re:i),":",1
+			set key=trim div.0
+			set value=trim div.1
+			tmp.set key,value
+		return tmp
+
+
+# Globals or useful only
+class __element:
+	shared maker
+	function maker elem_type elem_id:
+		set s=new __element
+		set s._type=const elem_type
+		set s._id=const elem_id
+		return s
+	property get id:
+		return this._id
+	property noset id
+	property get type:
+		return this._type
+	property noset type
+	property get innerHTML:
+		return postback.get this._id,"innerHTML"
+	property set innerHTML:
+		postback.set this._id,"innerHTML",value
+	property get accesskey:
+		return postback.get this._id,"accesskey"
+	property set accesskey:
+		postback.set this._id,"accesskey",value
+	property get alt:
+		return postback.get this._id,"alt"
+	property set alt:
+		postback.set this._id,"alt",value
+	property get checked:
+		return postback.get this._id,"checked"
+	property set checked:
+		postback.set this._id,"checked",value
+	property get class_name:
+		return postback.get this._id,"class"
+	property noset class_name
+	property get cols:
+		return postback.get this._id,"cols"
+	property set cols:
+		postback.set this._id,"cols",value
+	property get colspan:
+		return postback.get this._id,"colspan"
+	property set colspan:
+		postback.set this._id,"colspan",value
+	property get datetime:
+		return postback.get this._id,"datetime"
+	property set datetime:
+		postback.set this._id,"datetime",value
+	property get disabled:
+		return postback.get this._id,"disabled"
+	property set disabled:
+		postback.set this._id,"disabled",value
+	property get download:
+		return postback.get this._id,"download"
+	property set download:
+		postback.set this._id,"download",value
+	property get draggable:
+		return postback.get this._id,"draggable"
+	property set draggable:
+		postback.set this._id,"draggable",value
+	property get height:
+		return postback.get this._id,"height"
+	property set height:
+		postback.set this._id,"height",value
+	property get hidden:
+		return postback.get this._id,"hidden"
+	property set hidden:
+		postback.set this._id,"hidden",value
+	property get href:
+		return postback.get this._id,"href"
+	property set href:
+		postback.set this._id,"href",value
+	property get min:
+		return postback.get this._id,"min"
+	property set min:
+		postback.set this._id,"min",value
+	property get max:
+		return postback.get this._id,"max"
+	property set max:
+		postback.set this._id,"max",value
+	property get name:
+		return postback.get this._id,"name"
+	property set name:
+		postback.set this._id,"name",value
+	# Use events instead
+	property noget onabort
+	property noset onabort
+	property noget onblur
+	property noset onblur
+	property noget onchange
+	property noset onchange
+	property noget onclick
+	property noset onclick
+	property noget oncontextmenu
+	property noset oncontextmenu
+	property noget oncopy
+	property noset oncopy
+	property noget oncut
+	property noset oncut
+	property noget ondblclick
+	property noset ondblclick
+	property noget ondrag
+	property noset ondrag
+	property noget ondragend
+	property noset ondragend
+	property noget ondragenter
+	property noset ondragenter
+	property noget ondragleave
+	property noset ondragleave
+	property noget ondragover
+	property noset ondragover
+	property noget ondragstart
+	property noset ondragstart
+	property noget ondrop
+	property noset ondrop
+	property noget onerror
+	property noset onerror
+	property noget onfocus
+	property noset onfocus
+	property noget oninput
+	property noset oninput
+	property noget onkeydown
+	property noset onkeydown
+	property noget onkeypress
+	property noset onkeypress
+	property noget onkeyup
+	property noset onkeyup
+	property noget onmousedown
+	property noset onmousedown
+	property noget onmousepress
+	property noset onmousepress
+	property noget onmouseup
+	property noset onmouseup
+	property noget onmousemove
+	property noset onmousemove
+	property noget onmouseout
+	property noset onmouseout
+	property noget onmouseover
+	property noset onmouseover
+	property noget onmousewheel
+	property noset onmousewheel
+	property noget onpaste
+	property noset onpaste
+	property noget onscroll
+	property noset onscroll
+	property noget onsearch
+	property noset onsearch
+	property noget onselect
+	property noset onselect
+	property noget onsubmit
+	property noset onsubmit
+	property noget onwheel
+	property noset onwheel
+	property get placeholder:
+		return postback.get this._id,"placeholder"
+	property set placeholder:
+		postback.set this._id,"placeholder",value
+	property get readonly:
+		return postback.get this._id,"readonly"
+	property set readonly:
+		postback.set this._id,"readonly",value
+	property get rows:
+		return postback.get this._id,"rows"
+	property set rows:
+		postback.set this._id,"rows",value
+	property get rowspan:
+		return postback.get this._id,"rowspan"
+	property set rowspan:
+		postback.set this._id,"rowspan",value
+	property get selected:
+		return postback.get this._id,"selected"
+	property set selected:
+		postback.set this._id,"selected",value
+	property get size:
+		return postback.get this._id,"size"
+	property set size:
+		postback.set this._id,"size",value
+	property get span:
+		return postback.get this._id,"span"
+	property set span:
+		postback.set this._id,"span",value
+
+
+
