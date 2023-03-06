@@ -45,6 +45,13 @@ string curexp(string exp, varmap &myenv);
 string auto_curexp(string exp, varmap &myenv);
 int random();
 
+typedef intValue(*bcaller)(string, varmap&);
+map<string, bcaller> intcalls;
+
+intValue preRun(string code, varmap &myenv, map<string, intValue> required_global = {}, map<string, bcaller> required_callers = {}, bool require_execute = true);
+// Always no-execute:
+intValue preRun(vector<string> &codestream, varmap &myenv, map<string, intValue> required_global = {}, map<string, bcaller> required_callers = {});
+
 HANDLE stdouth;
 DWORD precolor = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN, nowcolor = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN;
 void setColor(DWORD color) {
@@ -1598,8 +1605,6 @@ private:
 	map<size_t, size_t> reverted;
 };
 
-typedef intValue(*bcaller)(string, varmap&);
-map<string, bcaller> intcalls;
 
 int random() {
 	static int seed = time(NULL);
@@ -2649,9 +2654,17 @@ intValue run(string code, varmap &myenv, string fname) {
 	return null;
 }
 
+intValue preRun(string code, varmap &myenv, map<string, intValue> required_global, map<string, bcaller> required_callers, bool require_execute) {
+	auto s = split(code, '\n', -1, '\"', '\\', true);
+	preRun(s, myenv, required_global, required_callers);
+	if (require_execute) {
+		intValue res = run(code, myenv, "Main function");
+		return res;
+	}
+}
 
 // This 'myenv' must be pushed
-intValue preRun(string code, varmap &myenv, map<string, intValue> required_global = {}, map<string, bcaller> required_callers = {}) {
+intValue preRun(vector<string> &codestream, varmap &myenv, map<string, intValue> required_global, map<string, bcaller> required_callers) {
 	// Should prepare functions for it.
 	string fname = "Runtime preproessor";
 	myenv.push();
@@ -2729,30 +2742,10 @@ intValue preRun(string code, varmap &myenv, map<string, intValue> required_globa
 	else {
 		env_dir = env_name.substr(0, p) + '\\';
 	}
-	vector<string> codestream;
-	// Initalize libraries right here
-	FILE *fb = fopen("BluePage.blue", "r");
-	if (fb != NULL) {
-		while (!feof(fb)) {
-			memset(buf1, 0, sizeof(buf1));
-			fgets(buf1, 65536, fb);
-			codestream.push_back(buf1);
-		}
-	}
-	fclose(fb);
-	FILE *f = fopen("bmain.blue", "r");
-	if (f != NULL) {
-		while (!feof(f)) {
-			memset(buf1, 0, sizeof(buf1));
-			fgets(buf1, 65536, f);
-			codestream.push_back(buf1);
-		}
-	}
-	fclose(f);
-	// End
+	//vector<string> codestream;
 
-	vector<string> sc = split(code, '\n', -1, '\"', '\\', true);
-	codestream.insert(codestream.end() - 1, sc.begin(), sc.end());
+	//vector<string> sc = split(code, '\n', -1, '\"', '\\', true);
+	//codestream.insert(codestream.end() - 1, sc.begin(), sc.end());
 	string curclass = "";					// Will append '.'
 	string curfun = "", cfname = "", cfargs = "";
 	int fun_indent = max_indent;
@@ -2938,14 +2931,8 @@ intValue preRun(string code, varmap &myenv, map<string, intValue> required_globa
 		myenv.set_global(cfname + ".__arg__", cfargs, true);
 	}
 
-	//return null;
-	// End
-
-	intValue res = run(code, myenv, "Main function");
-
-	// For debug propose
-	//myenv.dump();
-	return res;
+	return null;
+	
 }
 
 char post_buf1[8192] = {};
@@ -3108,13 +3095,130 @@ int main(int argc, char* argv[]) {
 		return null;
 	};
 
+	// Helpful constants
+	reqs["BBEGIN"] = intValue(blue_start);
+	reqs["BEND"] = intValue(blue_end);
+
+	// General environment
+	varmap keep_env;
+	keep_env.push();
+
+	// Load libraries
+	vector<string> codestream;
+
+	auto lib_reader = [&codestream](const char* name) {
+		FILE *fb = fopen(name, "r");
+		if (fb != NULL) {
+			while (!feof(fb)) {
+				memset(buf1, 0, sizeof(buf1));
+				fgets(buf1, 65536, fb);
+				codestream.push_back(buf1);
+			}
+		}
+		fclose(fb);
+	};
+
+	// Initalize libraries right here
+	lib_reader("document.blue");
+	lib_reader("BluePage.blue");
+	lib_reader("bmain.blue");
+
+	// Put document as a new object ...
+	generateClass("document", "object", keep_env, false);
+
+	
+	// Preprocessor (for all tags)
+	const char html_begin = '<';
+	const char html_end = '>';
+	const string html_mark = "<!--";	// After beginner
+	const string html_mark_end = "-->";
+	const string id_matcher = " id=";
+	const set<char> html_dispose = { '?', '!', '/' };
+	size_t next_pos = 0, next_end_pos = 0;
+	while ((next_pos = code.find(html_begin, next_pos)) != string::npos) {
+		next_end_pos = code.find(html_end, next_pos);
+		if (next_end_pos == string::npos) {
+			raise_global_ce("HTML block is not closed");
+		}
+		else {
+
+			if (code.find(blue_start, next_pos) == next_pos) {
+				// Deal with usual BluePage mark
+				// Go until blue_end.
+				next_pos = code.find(blue_end, next_pos) + blue_end.length();
+			}
+			else if (code.find(html_mark, next_pos) == next_pos) {
+				// Deal with comments
+				// Go until -->
+				next_pos = code.find(html_mark_end, next_pos) + html_mark_end.length();
+			}
+			else if (html_dispose.count(code[next_pos + 1])) {
+				// Deal with unused thing: Preventing string,
+				bool in_str = false, in_trans = false;
+				char ch;
+				while ((ch = code[next_pos++]) != html_end || in_str || in_trans) {
+					switch (ch) {
+					case '\\':
+						in_trans = true;
+						break;
+					case '"':
+						if (!in_trans) in_str = !in_str;
+						// PASSTHROUGH FOR in_trans SETTER
+					default:
+						in_trans = false;
+					}
+				}
+				// It's the right place (added) now.
+			}
+			else {
+				// Deal with normal block
+				// Should be like: <a id="test" href="javascript:;">
+				//                   ----------^ id_pos_end
+				//                   ^type_pos
+				//                 ^ next_pos
+
+				// ** TODO: Add NAME dealer (search for the first space and divide!)
+				size_t nadd = next_pos + 1;
+				size_t type_pos = code.find(' ', nadd);
+				string tag_type = code.substr(nadd, type_pos - nadd);
+
+				size_t id_pos = code.find(id_matcher, nadd);
+				size_t id_epos = id_pos + id_matcher.length();
+				size_t id_pos_end = code.find(' ', next_pos + id_epos);
+				string id_data = code.substr(id_epos, id_pos_end - id_epos);	// "test"
+				string tag_name;
+				if (id_data[0] != '"') {
+					// Format in our own
+					tag_name = unformatting(id_data);
+				}
+				else {
+					// Should have been formatted
+					tag_name = id_data;
+				}
+				// Do a preprocess: push into codestream
+				generateClass("document." + tag_name, "__element", keep_env, false);
+				keep_env["document." + tag_name + "._id"] = intValue(tag_name);
+				keep_env["document." + tag_type + "._type"] = intValue(tag_type);
+				// Run certain style-reader
+
+			}
+
+			
+
+		}
+	}
+
+	// End
+	preRun(codestream, keep_env, reqs, { {string("__utfcall"), utf_call} });
+
+
+	// Getting into the reader...
 	auto &ur = reqs["UTF_TARGET"];
 	if (!ur.isNull) {
 		utf_target = ur.str;
 	}
-	varmap keep_env;
-	keep_env.push();
-	size_t next_pos = 0, previous_pos = 0;
+	next_pos = 0;
+	size_t previous_pos = 0;
 	string current_code = "";
 	bool autolen = false, end_of_postback = false;
 	while ((next_pos = code.find(blue_start, next_pos)) != string::npos) {
