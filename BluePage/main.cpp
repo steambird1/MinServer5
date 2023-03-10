@@ -2945,6 +2945,9 @@ char post_buf1[8192] = {};
 string utf_target = "";
 bool using_utf = false;	// Which means put content into another file
 
+// Set it to 0 when ready
+#define RAW_POST_TEST 1
+
 int main(int argc, char* argv[]) {
 	//setlocale(LC_ALL, "C");
 	stdouth = GetStdHandle(STD_OUTPUT_HANDLE);
@@ -2953,10 +2956,17 @@ int main(int argc, char* argv[]) {
 #pragma region Compiler Test Option
 #if _DEBUG
 	// Warning: When testing VBWeb can't use it
+#if RAW_POST_TEST
+	string code = "", file = "index.bp";
+	target_path = "index_test.target.html";
+	in_debug = false;
+	no_lib = false;
+#else
 	string code = "", file = "";
 	target_path = "";
 	in_debug = false;
 	no_lib = false;
+#endif
 
 	if (code.length()) {
 		specialout();
@@ -2995,10 +3005,10 @@ int main(int argc, char* argv[]) {
 	map<string, intValue> reqs = { {"FILE_NAME", intValue(file)}, {"__BLUEPAGE__", intValue(1)} };
 	map<string, bcaller> callers;	// Insert your requirements here
 
-#if 0
+#if RAW_POST_TEST
 	// For postback testers:
 	reqs["IS_POSTBACK"] = intValue(0);
-	reqs["SELF_POST"] = intValue("/ExampleTarget");
+	reqs["SELF_POST"] = intValue("/");
 	reqs["page_mode"] = intValue(1);
 	// End.
 #endif
@@ -3043,7 +3053,7 @@ int main(int argc, char* argv[]) {
 
 	if (target_path.length() <= 0) {
 		curlout();
-		cout << "Error: Target path not given. use --target:Path." << endl;
+		cout << "Error: Target path is not given. use --target:Path." << endl;
 		endout();
 		return 1;
 	}
@@ -3120,18 +3130,24 @@ int main(int argc, char* argv[]) {
 				fgets(buf1, 65536, fb);
 				codestream.push_back(buf1);
 			}
+			fclose(fb);
 		}
-		fclose(fb);
+		else {
+			curlout();
+			cout << "Bad standard library: " << name << endl;
+			endout();
+		}
+		
 	};
 
 	// Initalize libraries right here
+	lib_reader("bmain.blue");	// It should be read at first!
 	lib_reader("document.blue");
 	lib_reader("BluePage.blue");
-	lib_reader("bmain.blue");
+	lib_reader("WebHeader.blue");
 
 	// Put document as a new object ...
 	generateClass("document", "object", keep_env, false);
-
 	
 	// Preprocessor (for all tags)
 	const char html_begin = '<';
@@ -3183,30 +3199,35 @@ int main(int argc, char* argv[]) {
 				//                   ^type_pos
 				//                 ^ next_pos
 
-				// ** TODO: Add NAME dealer (search for the first space and divide!)
 				size_t nadd = next_pos + 1;
 				size_t type_pos = code.find(' ', nadd);
-				string tag_type = code.substr(nadd, type_pos - nadd);
+				if (type_pos <= next_end_pos) {
+					string tag_type = code.substr(nadd, type_pos - nadd);
+					string tag_name = "";
+					size_t id_pos = code.find(id_matcher, nadd);
+					if (id_pos < next_end_pos) {	// Not in the current tag
+						size_t id_epos = id_pos + id_matcher.length();
+						size_t id_pos_end = code.find(' ', id_epos);
+						if (id_pos_end > next_end_pos) id_pos_end = next_end_pos;
+						tag_name = code.substr(id_epos, id_pos_end - id_epos);	// "test"
 
-				size_t id_pos = code.find(id_matcher, nadd);
-				size_t id_epos = id_pos + id_matcher.length();
-				size_t id_pos_end = code.find(' ', next_pos + id_epos);
-				string id_data = code.substr(id_epos, id_pos_end - id_epos);	// "test"
-				string tag_name;
-				if (id_data[0] != '"') {
-					// Format in our own
-					tag_name = unformatting(id_data);
-				}
-				else {
-					// Should have been formatted
-					tag_name = id_data;
-				}
-				// Do a preprocess: push into codestream
-				generateClass("document." + tag_name, "__element", keep_env, false);
-				keep_env["document." + tag_name + "._id"] = intValue(tag_name);
-				keep_env["document." + tag_type + "._type"] = intValue(tag_type);
-				// Run certain style-reader
+						if (tag_name[0] == '"') {
+							// Format in our own
+							tag_name.pop_back();
+							tag_name.erase(tag_name.begin());
+						}
+					}
+					// Do a preprocess: push into codestream
+					generateClass("document." + tag_name, "__element", keep_env, false);
+					keep_env["document." + tag_name + "._id"] = intValue(tag_name);
+					keep_env["document." + tag_name + "._type"] = intValue(tag_type);
+					// Run certain style-reader? (TODO item)
 
+				}
+				// Can't be used
+				// Always push
+				next_pos = next_end_pos + 1;
+				
 			}
 
 			

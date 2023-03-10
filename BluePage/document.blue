@@ -29,22 +29,23 @@ class __element:
 	shared maker
 	# Style support
 	function style_update:
-		set m=membersof this.data
-		set this.expr=""
+		set m=membersof this.style_data
+		set this.style_expr=""
 		for i=0~m.length:
-			set this.expr+=m:i+": "+this.data:(m:i)+";"
+			set this.style_expr+=m:i+": "+this.style_data:(m:i)+";"
 	function style_get key:
-		return this.data:key
+		return this.style_data:key
 	function style_set key value:
-		set this.data:key=value
+		set this.style_data:key=value
 		this.style_update
 	function style_maker style_desc:
+		set this.style_expr=style_desc
 		set re=split style_desc,";",-1
 		for i=0~re.length:
 			set div=split (re:i),":",1
 			set key=trim div.0
 			set value=trim div.1
-			set this.data:key=value
+			set this.style_data:key=value
 	# end
 	function maker elem_type elem_id:
 		set s=new __element
@@ -227,7 +228,9 @@ class __element:
 		return postback.get this._id,"src"
 	property set src:
 		postback.set this._id,"src",value
-	
+	property get style:
+		return this.style_expr
+	property noset style
 	# To be written ...
 
 
