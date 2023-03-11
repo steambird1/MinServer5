@@ -369,7 +369,7 @@ NormalResolver: Dim MyExtension As String = GetExtension(MyScript)
         ElseIf MyExtension = page_interpreter Then
             ' Supports UTF.
             UTFTarget = GenerateRandom(DirectoryToBluebetter)
-            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --const:page_mode=1 --const:SELF_POST=" & SelfPost & " --const:IS_POSTBACK=" & IsPostBack & " --const:UTF_TARGET=" & UTFTarget & "" & IsDebug & ExternalOption, AppWinStyle.Hide, True)
+            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --const:page_mode=1 --const:SELF_POST=" & SelfPost & " --const:IS_POSTBACK=" & IsPostBack & " --const:UTF_TARGET=" & UTFTarget & " " & IsDebug & ExternalOption, AppWinStyle.Hide, True)
         Else
             ' Send the whole file
             ' To modify encoding and apply to everywhere!
