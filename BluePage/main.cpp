@@ -1058,7 +1058,7 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 					nvm[array_arg + dots + to_string(arg.size())] = null;
 					external = 1;
 				}
-				nvm[array_arg + dots + "length"] = intValue(arg.size() + external);
+				nvm[array_arg + dots + ".length"] = intValue(arg.size() + external);
 			}
 			if (set_this.length()) nvm.set_this(&vm, set_this);
 			if (set_no_this) {
@@ -1637,6 +1637,11 @@ void generateClass(string variable, string classname, varmap &myenv, bool run_in
 		run(myenv[cini].str, vm, cini);
 		__spec--;
 	}
+}
+
+void generateGlobalClass(string variable, string classname, varmap &myenv) {
+	myenv.set_global(variable, null);
+	myenv.set_global(variable + ".__type__", classname);
 }
 
 string env_name;	// Directory of current file.
@@ -3146,8 +3151,9 @@ int main(int argc, char* argv[]) {
 	lib_reader("BluePage.blue");
 	lib_reader("WebHeader.blue");
 
-	// Put document as a new object ...
-	generateClass("document", "object", keep_env, false);
+	// Put document as a new object ... (SHOULD BE GLOBAL ?!)
+	//generateClass("document", "object", keep_env, false);
+	generateGlobalClass("document", "object", keep_env);
 	
 	// Preprocessor (for all tags)
 	const char html_begin = '<';
@@ -3218,9 +3224,16 @@ int main(int argc, char* argv[]) {
 						}
 					}
 					// Do a preprocess: push into codestream
+					
+					generateGlobalClass("document." + tag_name, "__element", keep_env);
+					keep_env.set_global("document." + tag_name + "._id", intValue(tag_name), true);
+					keep_env.set_global("document." + tag_name + "._type", intValue(tag_type), true);
+					
+					/*
 					generateClass("document." + tag_name, "__element", keep_env, false);
 					keep_env["document." + tag_name + "._id"] = intValue(tag_name);
 					keep_env["document." + tag_name + "._type"] = intValue(tag_type);
+					*/
 					// Run certain style-reader? (TODO item)
 
 				}

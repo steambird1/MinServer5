@@ -229,6 +229,3 @@ class __element:
 		return postback.get this._id,"width"
 	property set width:
 		postback.set this._id,"width",value
-	# To be written ...
-
-
