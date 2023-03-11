@@ -2985,7 +2985,7 @@ int main(int argc, char* argv[]) {
 	in_debug = false;
 	no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 5.0a\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.21\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
+	string version_info = string("BluePage Interpreter\nVersion 6.0\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.21\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
 #pragma endregion
 	// End
 
