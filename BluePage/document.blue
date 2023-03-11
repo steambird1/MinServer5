@@ -220,10 +220,13 @@ class __element:
 	property get type:
 		return postback.get this._id,"type"
 	property noset type
-	# USE VAL INSTEAD OF VALUE
 	property get val:
 		return postback.get this._id,"value"
 	property set val:
+		postback.set this._id,"value",value
+	property get value:
+		return postback.get this._id,"value"
+	property set value:
 		postback.set this._id,"value",value
 	property get width:
 		return postback.get this._id,"width"
