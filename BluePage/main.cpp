@@ -2946,7 +2946,7 @@ string utf_target = "";
 bool using_utf = false;	// Which means put content into another file
 
 // Set it to 0 when ready
-#define RAW_POST_TEST 1
+#define RAW_POST_TEST 0
 
 int main(int argc, char* argv[]) {
 	//setlocale(LC_ALL, "C");

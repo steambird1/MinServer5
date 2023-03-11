@@ -1,4 +1,4 @@
-﻿class __element_style:
+﻿class element_style:
 	shared maker
 	init:
 		set this.data=new dict
@@ -23,43 +23,16 @@
 			tmp.set key,value
 		return tmp
 
-
 # Globals or useful only
 class __element:
 	shared maker
 	# Style support
-	function style_update:
-		set m=membersof this.style_data
-		set this.style_expr=""
-		for i=0~m.length:
-			set this.style_expr+=m:i+": "+this.style_data:(m:i)+";"
-	function style_get key:
-		return this.style_data:key
-	function style_set key value:
-		set this.style_data:key=value
-		this.style_update
-	function style_maker style_desc:
-		set this.style_expr=style_desc
-		set re=split style_desc,";",-1
-		for i=0~re.length:
-			set div=split (re:i),":",1
-			set key=trim div.0
-			set value=trim div.1
-			set this.style_data:key=value
-	# end
-	function maker elem_type elem_id:
-		set s=new __element
-		set s._type=const elem_type
-		set s._id=const elem_id
-		s.style_maker (postback.get this._id,"style")
-		#.... REQUIRE NEW PROCESSOR
-		return s
 	property get id:
 		return this._id
 	property noset id
-	property get type:
+	property get elem_type:
 		return this._type
-	property noset type
+	property noset elem_type
 	property get innerHTML:
 		return postback.get this._id,"innerHTML"
 	property set innerHTML:
@@ -75,7 +48,7 @@ class __element:
 	property get checked:
 		return postback.get this._id,"checked"
 	property set checked:
-		postback.set this._id,"checked",value
+		postback.set_bool this._id,"checked",value
 	property get class_name:
 		return postback.get this._id,"class"
 	property noset class_name
@@ -94,7 +67,7 @@ class __element:
 	property get disabled:
 		return postback.get this._id,"disabled"
 	property set disabled:
-		postback.set this._id,"disabled",value
+		postback.set_bool this._id,"disabled",value
 	property get download:
 		return postback.get this._id,"download"
 	property set download:
@@ -102,7 +75,7 @@ class __element:
 	property get draggable:
 		return postback.get this._id,"draggable"
 	property set draggable:
-		postback.set this._id,"draggable",value
+		postback.set_bool this._id,"draggable",value
 	property get height:
 		return postback.get this._id,"height"
 	property set height:
@@ -110,7 +83,7 @@ class __element:
 	property get hidden:
 		return postback.get this._id,"hidden"
 	property set hidden:
-		postback.set this._id,"hidden",value
+		postback.set_bool this._id,"hidden",value
 	property get href:
 		return postback.get this._id,"href"
 	property set href:
@@ -203,7 +176,7 @@ class __element:
 	property get readonly:
 		return postback.get this._id,"readonly"
 	property set readonly:
-		postback.set this._id,"readonly",value
+		postback.set_bool this._id,"readonly",value
 	property get rows:
 		return postback.get this._id,"rows"
 	property set rows:
@@ -215,7 +188,7 @@ class __element:
 	property get selected:
 		return postback.get this._id,"selected"
 	property set selected:
-		postback.set this._id,"selected",value
+		postback.set_bool this._id,"selected",value
 	property get size:
 		return postback.get this._id,"size"
 	property set size:
@@ -229,8 +202,33 @@ class __element:
 	property set src:
 		postback.set this._id,"src",value
 	property get style:
-		return this.style_expr
-	property noset style
+		return postback.get this._id,"style"
+	property set style:
+		postback.set this._id,"style",value
+	property get target:
+		return postback.get this._id,"target"
+	property set target:
+		postback.set this._id,"target",value
+	property get title:
+		return postback.get this._id,"title"
+	property set title:
+		postback.set this._id,"title",value
+	property get translate:
+		return postback.get this._id,"translate"
+	property set translate:
+		postback.set_bool this._id,"translate",value
+	property get type:
+		return postback.get this._id,"type"
+	property noset type
+	# USE VAL INSTEAD OF VALUE
+	property get val:
+		return postback.get this._id,"value"
+	property set val:
+		postback.set this._id,"value",value
+	property get width:
+		return postback.get this._id,"width"
+	property set width:
+		postback.set this._id,"width",value
 	# To be written ...
 
 
