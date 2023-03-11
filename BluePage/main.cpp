@@ -3314,7 +3314,7 @@ int main(int argc, char* argv[]) {
 			// Should be provided:
 			// Matches 'xhr.setRequestHeader('MinServerPostBack','1');' in the header.
 			string &is_postback = reqs["IS_POSTBACK"].str;	// To deal with postback, 0 or 1
-			string my_bef_send = "", my_aft_send = "";
+			string my_bef_send = "", my_aft_send = "", my_progress = "";
 			// Also deal with postback in the field
 			if (is_postback == "1") {
 				// To be written... serial object into postback support, also send commands back.
@@ -3355,6 +3355,9 @@ int main(int argc, char* argv[]) {
 					else if (curcmd[0] == "after_send") {
 						my_aft_send = curcmd[1];
 					}
+					else if (curcmd[0] == "progressive") {
+						my_progress = curcmd[1];
+					}
 					else if (curcmd[0] == "on_load") {
 						onloadcall += "	mins_postback('" + curcmd[1] + "');\n";	
 					}
@@ -3363,12 +3366,15 @@ int main(int argc, char* argv[]) {
 					}
 				}
 
+				if (my_progress.length()) onloadcall += "	document.getElementById('" + my_progress + "').style = 'display: none;';\n";
 				onloadcall += "\n};";
 				onpostback += "\n	if (info != null) sending += '.field=\"' + mins_format(info.toString()) + '\"';\n	if (para != null) sending += '\\n.parameter=\"' + mins_format(para.toString()) + '\"';\n	var xhr = new XMLHttpRequest();\n";
-				if (my_bef_send.length()) onpostback += my_bef_send + "();";
-				onpostback += "setTimeout(function(){xhr.open('POST', '/" + myself +"', false); if (info != null) {xhr.setRequestHeader('MinServerPostBack','1');} xhr.send(sending); mins_dealing(xhr.responseText); ";
-				if (my_aft_send.length()) onpostback += my_aft_send + "()";
-				onpostback += ";}, 0);}";
+				if (my_progress.length()) onpostback += "	document.getElementById('" + my_progress + "').style = 'display: block;';\n";
+				if (my_bef_send.length()) onpostback += my_bef_send + "();\n";
+				onpostback += "	setTimeout(function(){\n		xhr.open('POST', '/" + myself +"', true); \n		if (info != null) {xhr.setRequestHeader('MinServerPostBack','1');} \n		xhr.onload = function (e) { if (xhr.readyState == 4) { mins_dealing(xhr.responseText); ";
+				if (my_progress.length()) onpostback += "document.getElementById('" + my_progress + "').style = 'display: none;';";
+				if (my_aft_send.length()) onpostback += my_aft_send + "(); \n";
+				onpostback += "} }\n		xhr.send(sending);\n	}, 0);\n}";
 				// Read Postback processor.
 				FILE *fread = fopen("Postback.js", "r");
 				if (fread == NULL) {
