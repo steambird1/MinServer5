@@ -16,13 +16,17 @@
 #include <ctime>
 #include <cmath>
 #include <clocale>
+#include <thread>
+#include <mutex>
 using namespace std;
 
 string target_path = "", header = "", content = "";
 
 // To symbol if it's next statement, not next progress
 bool np = false, spec_ovrd = false;
-int __spec = 0;
+thread_local int __spec = 0;
+vector<string> include_sources;
+
 
 // Open if not use bmain.blue
 bool no_lib = false;
@@ -39,7 +43,7 @@ struct intValue;
 intValue run(string code, varmap &myenv, string fname);
 intValue calculate(string expr, varmap &vm);
 void raiseError(intValue raiseValue, varmap &myenv, string source_function = "Unknown source", size_t source_line = 0, double error_id = 0, string error_desc = "");
-intValue getValue(string single_expr, varmap &vm, bool save_quote = false);
+intValue getValue(string single_expr, varmap &vm, bool save_quote = false, int multithreading = -1);
 void generateClass(string variable, string classname, varmap &myenv, bool run_init = true);
 string curexp(string exp, varmap &myenv);
 string auto_curexp(string exp, varmap &myenv);
@@ -79,7 +83,7 @@ inline void curlout() {
 
 const int max_indent = 65536;
 
-char buf0[255], buf01[255], buf1[65536];
+thread_local char buf0[255], buf01[255], buf1[65536];
 bool in_debug = false;	// Runner debug option.
 //set<size_t> breakpoints;
 vector<string> watches;
@@ -239,7 +243,8 @@ struct intValue {
 		return false;
 	}
 
-} null, trash;	// trash: Return if incorrect varmap[] is called.;
+}  null;
+thread_local intValue trash;	// trash: Return if incorrect varmap[] is called.
 
 #define raise_ce(description) raiseError(null, myenv, fname, execptr + 1, __LINE__, description)
 #define raise_varmap_ce(description) raiseError(null, *this, "Runtime", 0, __LINE__, description)
@@ -322,15 +327,25 @@ public:
 		string origin_name;
 		varmap *source;
 	};
-
 	varmap() {
 
 	}
+	varmap(const varmap &others) {
+		copy_from(others);
+	}
+	void copy_from(const varmap &source) {
+		this->vs = source.vs;
+		this->ref = source.ref;
+	}
 	void push() {
+		wait_for_perm();
 		vs.push_back(single_mapper());
+		release_perm();
 	}
 	void pop() {
+		wait_for_perm();
 		if (vs.size()) vs.pop_back();
+		release_perm();
 	}
 	bool count(string key) {
 		if (!key.length()) return false;
@@ -349,6 +364,7 @@ public:
 	// Before call THIS check it
 	// return TRUE if success or FALSE if fail £¨Unused currently)
 	bool set_referrer(string here_name, referrer ref) {
+		wait_for_perm();
 		// As a template, replace others ...
 		size_t last_pos = here_name.find_last_of('.');
 		vector<string> spls = { here_name.substr(0, last_pos), "" };
@@ -363,6 +379,7 @@ public:
 		else {
 			this->ref[here_name] = ref;
 		}
+		release_perm();
 		return true;
 	}
 	void set_referrer(string here_name, string origin_name, varmap *origin) {
@@ -374,9 +391,12 @@ public:
 		return ref.count(here_name);
 	}
 	void clean_referrer(string here_name) {
+		wait_for_perm();
 		if (have_referrer(here_name)) ref.erase(here_name);
+		release_perm();
 	}
 	// If return object serial, DON'T MODIFY IT !
+	// TODO: Add lock for it?
 	value_type& operator[](string key) {
 #pragma region Debug Purpose
 		//cout << "Require key: " << key << endl;
@@ -387,7 +407,7 @@ public:
 		}
 		// Find where it is
 		bool is_sharing = false;
-		if (key != "__is_sharing__" && this->operator[]("__is_sharing__").str == "1") {
+		if (vs[0]["__is_sharing__"].str == "1") {
 			is_sharing = true;
 		}
 		if (key == "this" || (key.substr(0, 5) == "this.")) {
@@ -515,7 +535,9 @@ public:
 		return vector<value_type>();
 	}
 	void deserial(string name, string serial) {
+		wait_for_perm();
 		if (!beginWith(serial, mymagic)) {
+			release_perm();
 			return;
 		}
 		serial = serial.substr(mymagic.length());
@@ -526,9 +548,12 @@ public:
 			(*this)[name + itemspl[0]] = getValue(itemspl[1], *this);
 		}
 		(*this)[name] = null;
+		release_perm();
 	}
 	void global_deserial(string name, string serial) {
+		wait_for_perm();
 		if (!beginWith(serial, mymagic)) {
+			release_perm();
 			return;
 		}
 		serial = serial.substr(mymagic.length());
@@ -539,10 +564,13 @@ public:
 			this->set_global(name + itemspl[0], getValue(itemspl[1], *this));
 		}
 		this->set_global(name, null);
+		release_perm();
 	}
 	void tree_clean(string name) {
+		wait_for_perm();
 		if (have_referrer(name)) {
 			this->clean_referrer(name);
+			release_perm();
 			return;
 		}
 		// Clean in my tree.
@@ -559,9 +587,11 @@ public:
 				for (auto &j : to_delete) {
 					i->erase(j);
 				}
+				release_perm();
 				return;
 			}
 		}
+		release_perm();	// Do it in the end
 	}
 	void transform_referrer_from(string here_name, varmap &transform_from, string transform_from_referrer) {
 		if (!transform_from.have_referrer(transform_from_referrer)) return;
@@ -573,6 +603,20 @@ public:
 		glob_vs[key] = value;
 		if (constant) glob_vs[key + ".__const__"] = intValue("1");
 	}
+	static void declare_global(string key) {
+		set_global(key, null);
+	}
+	static intValue& get_global(string key) {
+		return glob_vs[key];
+	}
+	void declare(string key) {
+		wait_for_perm();
+		vs[vs.size() - 1][key] = null;
+		release_perm();
+	}
+	void set_this(varmap *source, string name) {
+		set_referrer("this", name, source);
+	}
 	// Generate a unused random name.
 	string generate() {
 		string name;
@@ -580,15 +624,6 @@ public:
 			name = this->mygenerate + to_string(random());
 		} while (this->count(name));
 		return name;
-	}
-	static void declare_global(string key) {
-		set_global(key, null);
-	}
-	void declare(string key) {
-		vs[vs.size() - 1][key] = null;
-	}
-	void set_this(varmap *source, string name) {
-		set_referrer("this", name, source);
 	}
 	// This function is deprecated.
 	void dump() {
@@ -611,7 +646,7 @@ public:
 		cout << "*** END OF DUMP ***" << endl;
 		endout();
 	}
-	static void copy_inherit(string from, string dest) {
+	static void copy_inherit(string from, string dest) {	// Not required, only use when single-thread preRun
 		while (from[from.length() - 1] == '\n') from.pop_back();
 		while (dest[dest.length() - 1] == '\n') dest.pop_back();
 		for (auto &i : glob_vs) {
@@ -635,8 +670,17 @@ public:
 	const string mymagic = "__object$\n";
 	const string mygenerate = "__generate_";
 	const set<string> unserial = { "", "function", "class", "null" };
-
 private:
+
+	mutex thread_protect;
+	// Only use if modify it
+	void wait_for_perm() {
+		thread_protect.lock();
+	}
+	void release_perm() {
+		thread_protect.unlock();
+	}
+
 	vector<value_type> get_member_from(single_mapper &obj, string name, bool force_show = false) {
 		vector<value_type> result;
 		string mytype = (*this)[name + ".__type__"].str;
@@ -667,6 +711,7 @@ private:
 		}
 		return result;
 	}
+	// serial and serial_from does NOT support RAW REFERRER.
 	intValue serial_from(single_mapper &obj, string name) {
 		string tmp = mymagic;
 		const static string sdot = ".";
@@ -729,6 +774,20 @@ private:
 	// Save evalable thing, like "" for string
 	static map<string, value_type>										glob_vs;
 };
+
+// For mutex and thread support
+// mutex: mutex make/wait/release [name]
+map<string, mutex> mutex_table;
+// thread: thread new container=function; thread join container; thread detach container; thread status receiver=container
+map<int, thread> thread_table;
+
+enum thread_status {
+	unknown = -999,
+	not_exist = -1,
+	not_joinable = 0,
+	joinable = 1
+};
+
 
 void raiseError(intValue raiseValue, varmap &myenv, string source_function, size_t source_line, double error_id, string error_desc) {
 	if (source_function == "__error_handler__") {
@@ -801,7 +860,7 @@ string formatting(string origin, char dinner = '\\', char ignorer = -1) {
 }
 
 // If save_quote, formatting() will not process anything inside quote.
-intValue getValue(string single_expr, varmap &vm, bool save_quote) {
+intValue getValue(string single_expr, varmap &vm, bool save_quote, int multithreading) {
 	if (single_expr == "null" || single_expr == "") return null;
 	// Remove any '(' in front
 	while (single_expr.length() && single_expr[0] == '(') {
@@ -1058,7 +1117,7 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 					nvm[array_arg + dots + to_string(arg.size())] = null;
 					external = 1;
 				}
-				nvm[array_arg + dots + ".length"] = intValue(arg.size() + external);
+				nvm[array_arg + dots + "_length"] = intValue(arg.size() + external);
 			}
 			if (set_this.length()) nvm.set_this(&vm, set_this);
 			if (set_no_this) {
@@ -1068,13 +1127,23 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote) {
 			if (vm[spl[0]].isNull || s.length() == 0) {
 				raise_gv_ce(string("Warning: Call of null function ") + spl[0]);
 			}
-			__spec++;
-			auto r = run(s, nvm, spl[0]);
-			__spec--;
-			if (r.isNumeric && neg < 0) {
-				r = intValue(-r.numeric);
+			if (multithreading >= 0) {
+				__spec++;
+				thread_table[multithreading] = thread([](string s, varmap nvm, string spls) {run(s, nvm, spls); }, s, nvm, spl[0]);	// CAN'T WRITE THIS
+				thread_table[multithreading].detach();
+				__spec--;
+				return null;
 			}
-			return r;
+			else {
+				__spec++;
+				auto r = run(s, nvm, spl[0]);
+				__spec--;
+				if (r.isNumeric && neg < 0) {
+					r = intValue(-r.numeric);
+				}
+				return r;
+			}
+
 		}
 		else {
 			auto r = vm[spl[0]];
@@ -2143,9 +2212,10 @@ intValue run(string code, varmap &myenv, string fname) {
 			intv.str.insert(pos, calculate(codexec2_origin[1], myenv).str);
 			//intv.str[pos] = calculate(codexec2_origin[1], myenv).str[0];
 		}
-		else if (codexec[0] == "global") {	// Todo: add 'new' , 'object', 'serial', ... After varmap is changed
+		else if (codexec[0] == "global") {
+			bool constant = false;
 			parameter_check(2);
-			vector<string> codexec2 = split(codexec[1], '=', 1);
+			vector<string> codexec2 = split(codexec[1], '=', 1);	// May be global a=const ...
 			parameter_check2(2, "set");
 			if (codexec2[0][0] == '$') {
 				codexec2[0].erase(codexec2[0].begin());
@@ -2154,12 +2224,43 @@ intValue run(string code, varmap &myenv, string fname) {
 			else if (codexec2[0].find(":") != string::npos) {
 				codexec2[0] = curexp(codexec2[0], myenv);
 			}
+			static const string const_sign = "const ";	// set a=const ...
+			if (beginWith(codexec2[1], const_sign)) {
+				constant = true;
+				codexec2[1] = codexec2[1].substr(const_sign.length());
+			}
+			char det;
+			string external_op = "", &czero = codexec2[0];
+			// Only 2 layers' detect, reversely
+			if (czero.length() >= 2 && priority(det = czero[czero.length() - 1]) > 0) {
+				external_op = det;
+				czero.pop_back();
+				if (czero.length() >= 2 && priority(det = czero[czero.length() - 1]) > 0) {
+					external_op = det + external_op;
+					czero.pop_back();
+				}
+			}
+			// Should be like:
+			// myenv[codexec2[0]] = primary_calculate(myenv[codexec2[0]], external_op, res, myenv);
+			if (codexec2[0].find(".__const__") != string::npos || myenv[codexec2[0] + ".__const__"].str == "1") {
+				raise_ce(string("Cannot set a value of constant: ") + codexec2[0]);
+				return null;
+			}
 			auto res = calculate(codexec2[1], myenv);
 			if (res.isObject) {
+				if (external_op.length()) {
+					raise_ce("Warning: using operators like +=, -=, *= for object is meaningless");
+				}
 				myenv.global_deserial(codexec2[0], res.str);
+				if (constant) {
+					myenv.set_global(codexec2[0] + ".__const__", intValue("1"));
+				}
+			}
+			else if (external_op.length()) {
+				myenv.set_global(codexec2[0], primary_calculate(myenv.get_global(codexec2[0]), external_op, res, myenv), constant);
 			}
 			else {
-				myenv.set_global(codexec2[0], res);
+				myenv.set_global(codexec2[0], res, constant);
 			}
 		}
 		else if (codexec[0] == "if" || codexec[0] == "elif") {
@@ -2253,7 +2354,7 @@ intValue run(string code, varmap &myenv, string fname) {
 				goto after_add_exp;
 			}
 		}
-		else if (codexec[0] == "else:") {
+		else if (codexec[0] == "else:" || codexec[0] == "preset") {
 			// Go on executing
 		}
 		else if (codexec[0] == "run") {
@@ -2584,6 +2685,106 @@ intValue run(string code, varmap &myenv, string fname) {
 			}
 
 		}
+		else if (codexec[0] == "mutex") {
+		vector<string> codexec2 = split(codexec[1], ' ', 1), codexec3;
+		parameter_check(2);
+		parameter_check2(2, "mutex");
+		if (codexec2[0] == "test") {
+			// mutex test receiver=name
+			codexec3 = split(codexec2[1], '=', 1);
+			if (codexec3[0][0] == '$') {
+				codexec3[0].erase(codexec3[0].begin());
+				codexec3[0] = calculate(codexec3[0], myenv).str;
+			}
+			else if (codexec3[0].find(":") != string::npos) {
+				codexec3[0] = curexp(codexec3[0], myenv);
+			}
+			myenv[codexec3[0]] = intValue(mutex_table.count(calculate(codexec3[1], myenv).str));
+		}
+		else {
+			string mutex_name = calculate(codexec2[1], myenv).str;
+			if (codexec2[0] == "make") {
+				mutex_table[mutex_name];
+			}
+			else if (codexec2[0] == "wait") {
+				mutex_table[mutex_name].lock();
+			}
+			else if (codexec2[0] == "release") {
+				mutex_table[mutex_name].unlock();
+			}
+		}
+		}
+		else if (codexec[0] == "thread") {
+		vector<string> codexec2 = split(codexec[1], ' ', 1), codexec3;
+		parameter_check(2);
+		parameter_check2(2, "thread");
+		if (codexec2[0] == "test" || codexec2[0] == "new") {
+
+			// mutex test receiver=name
+			codexec3 = split(codexec2[1], '=', 1);
+			if (codexec3[0][0] == '$') {
+				codexec3[0].erase(codexec3[0].begin());
+				codexec3[0] = calculate(codexec3[0], myenv).str;
+			}
+			else if (codexec3[0].find(":") != string::npos) {
+				codexec3[0] = curexp(codexec3[0], myenv);
+			}
+			if (codexec2[0] == "test") {
+				int cid = calculate(codexec3[1], myenv).numeric;
+				thread_status result = thread_status::unknown;
+				if (thread_table.count(cid)) {
+					thread &t = thread_table[cid];
+					if (t.joinable()) {
+						result = thread_status::joinable;
+					}
+					else {
+						result = thread_status::not_joinable;
+					}
+				}
+				else {
+					result = thread_status::not_exist;
+				}
+				myenv[codexec3[0]] = intValue(result);
+			}
+			else {
+				parameter_check3(2, "thread");
+
+				int n = 0;
+				while (thread_table.count(++n));
+				/*size_t spl = codexec3[1].find(' ');
+				if (spl < codexec3[1].length() - 1) {
+					string args = codexec3[1].substr(spl + 1);
+				}*/
+				/*string code_text = codexec3[1];
+				thread_table[n] = thread([code_text, &myenv]() {
+					calculate(code_text, myenv);
+				});
+				thread_table[n].detach();
+				*/
+				getValue(codexec3[1], myenv, false, n);
+
+			}
+
+		}
+		else {
+			// mutex join/detach var
+			if (codexec2[0] == "join") {
+				int cid = calculate(codexec2[1], myenv).numeric;
+				if (thread_table.count(cid)) {
+					auto &t = thread_table[cid];
+					if (t.joinable()) t.join();
+					else raise_ce("Cannot join current thread");
+				}
+			}
+			else if (codexec2[0] == "detach") {
+				int cid = calculate(codexec2[1], myenv).numeric;
+				if (thread_table.count(cid)) {
+					auto &t = thread_table[cid];
+					t.detach();
+				}
+			}
+		}
+		}
 		else if (codexec[0] == "import") {
 			// Do nothing
 		}
@@ -2701,7 +2902,7 @@ intValue preRun(vector<string> &codestream, varmap &myenv, map<string, intValue>
 #pragma endregion
 #pragma region Preset calls
 	intcalls["sleep"] = [](string args, varmap &env) -> intValue {
-		Sleep(DWORD(calculate(args, env).numeric));
+		this_thread::sleep_for(chrono::milliseconds((long long)calculate(args, env).numeric));
 		return null;
 	};
 	intcalls["system"] = [](string args, varmap &env) -> intValue {
@@ -2753,6 +2954,7 @@ intValue preRun(vector<string> &codestream, varmap &myenv, map<string, intValue>
 	else {
 		env_dir = env_name.substr(0, p) + '\\';
 	}
+	include_sources.insert(include_sources.begin(), env_dir);	// search at first
 	//vector<string> codestream;
 
 	//vector<string> sc = split(code, '\n', -1, '\"', '\\', true);
@@ -2814,14 +3016,20 @@ intValue preRun(vector<string> &codestream, varmap &myenv, map<string, intValue>
 						}
 					}
 					else {
-						f = fopen((env_dir + codexec2[1]).c_str(), "r");
-						if (f != NULL) {
-							while (!feof(f)) {
-								fgets(buf1, 65536, f);
-								codestream.push_back(buf1);
+						bool suc_flag = false;
+						for (auto &i : include_sources) {
+							f = fopen((i + codexec2[1]).c_str(), "r");
+							if (f != NULL) {
+								while (!feof(f)) {
+									fgets(buf1, 65536, f);
+									codestream.push_back(buf1);
+								}
+								fclose(f);
+								suc_flag = true;
+								break;
 							}
 						}
-						else {
+						if (!suc_flag) {
 							raise_ce(string("Bad import: ") + codexec2[1]);
 						}
 					}
@@ -2933,7 +3141,63 @@ intValue preRun(vector<string> &codestream, varmap &myenv, map<string, intValue>
 					raise_ce("Bad property");
 				}
 			}
-		}
+			else if (codexec[0] == "preset") {
+				// Instead of 'global', use 'preset' for preRun-segment global variables!
+				bool constant = false;
+				parameter_check(2);
+				string data = codexec[1];
+				if (codexec.size() >= 3) data = data + ' ' + codexec[2];
+				vector<string> codexec2 = split(data, '=', 1);	// May be global a=const ...
+				parameter_check2(2, "set");
+				if (codexec2[0][0] == '$') {
+					codexec2[0].erase(codexec2[0].begin());
+					codexec2[0] = calculate(codexec2[0], myenv).str;
+				}
+				else if (codexec2[0].find(":") != string::npos) {
+					codexec2[0] = curexp(codexec2[0], myenv);
+				}
+				codexec2[0] = curclass + codexec2[0];
+				static const string const_sign = "const ";	// set a=const ...
+				if (beginWith(codexec2[1], const_sign)) {
+					constant = true;
+					codexec2[1] = codexec2[1].substr(const_sign.length());
+				}
+				char det;
+				string external_op = "", &czero = codexec2[0];
+				// Only 2 layers' detect, reversely
+				if (czero.length() >= 2 && priority(det = czero[czero.length() - 1]) > 0) {
+					external_op = det;
+					czero.pop_back();
+					if (czero.length() >= 2 && priority(det = czero[czero.length() - 1]) > 0) {
+						external_op = det + external_op;
+						czero.pop_back();
+					}
+				}
+				// Should be like:
+				// myenv[codexec2[0]] = primary_calculate(myenv[codexec2[0]], external_op, res, myenv);
+				if (codexec2[0].find(".__const__") != string::npos || myenv[codexec2[0] + ".__const__"].str == "1") {
+					raise_ce(string("Cannot set a value of constant: ") + codexec2[0]);
+					return null;
+				}
+				auto res = calculate(codexec2[1], myenv);
+				if (res.isObject) {
+					if (external_op.length()) {
+						raise_ce("Warning: using operators like +=, -=, *= for object is meaningless");
+					}
+					myenv.global_deserial(codexec2[0], res.str);
+					if (constant) {
+						myenv.set_global(codexec2[0] + ".__const__", intValue("1"));
+					}
+				}
+				else if (external_op.length()) {
+					myenv.set_global(codexec2[0], primary_calculate(myenv.get_global(codexec2[0]), external_op, res, myenv), constant);
+				}
+				else {
+					myenv.set_global(codexec2[0], res, constant);
+				}
+			}
+
+}
 
 	}
 	if (cfname.length()) {
@@ -2985,7 +3249,7 @@ int main(int argc, char* argv[]) {
 	in_debug = false;
 	no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 6.0\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.21\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
+	string version_info = string("BluePage Interpreter\nVersion 6.1\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.22\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
 #pragma endregion
 	// End
 
@@ -3052,6 +3316,23 @@ int main(int argc, char* argv[]) {
 		else if (beginWith(opt, "--target:")) {
 			vector<string> spl = split(opt, ':', 1);
 			target_path = spl[1];
+		}
+		else if (beginWith(opt, "--include-from:")) {
+			vector<string> spl = split(opt, ':', 1);
+			if (spl.size() < 2) {
+				curlout();
+				cout << "Error: Bad format of --include-from option" << endl;
+				endout();
+				return 1;
+			}
+			include_sources.push_back(spl[1]);
+		}
+		else if (opt == "--no-lib") {
+			//no_lib = true;
+			curlout();
+			cout << "Error: --no-lib is not for BluePage!" << endl;
+			endout();
+			return 2;
 		}
 	}
 #pragma endregion
