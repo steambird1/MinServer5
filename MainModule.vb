@@ -57,7 +57,7 @@ Module MainModule
                 Console.Out.WriteLine()
                 Console.Out.Write("With BlueBetter and BluePage interpreter")
                 Console.Out.WriteLine()
-                Console.Out.Write("Version 1.13")
+                Console.Out.Write("Version 1.14")
                 Console.Out.WriteLine()
                 End
             ElseIf SplResult(0) = "--port" Then
