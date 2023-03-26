@@ -231,7 +231,7 @@ NormalResolver: Dim MyExtension As String = GetExtension(MyScript)
         Dim DocKind As String = GetDocumentKind(MyExtension)
         Dim MyScriptDir As String = ""
         Try
-            MyScriptDir = My.Computer.FileSystem.GetParentPath(MyScript)  ' MyScript: selected
+            MyScriptDir = My.Computer.FileSystem.GetParentPath(MyScript) & "\"  ' MyScript: selected
         Catch ex As Exception
 
         End Try
