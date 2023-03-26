@@ -269,6 +269,7 @@ __pycache__/
 /BluePage/test1.html
 
 # Coming soon:
-/BluePage/document.blue
 /BluePage/index.bp
 /BluePage/index_test.target.html
+/BluePage/test2.bp
+/BluePage/test2.target.html

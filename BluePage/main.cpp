@@ -3145,8 +3145,12 @@ intValue preRun(vector<string> &codestream, varmap &myenv, map<string, intValue>
 				// Instead of 'global', use 'preset' for preRun-segment global variables!
 				bool constant = false;
 				parameter_check(2);
+				while (codexec[1][codexec[1].length() - 1] == '\n') codexec[1].pop_back();
 				string data = codexec[1];
-				if (codexec.size() >= 3) data = data + ' ' + codexec[2];
+				if (codexec.size() >= 3) {
+					while (codexec[2][codexec[2].length() - 1] == '\n') codexec[2].pop_back();
+					data = data + ' ' + codexec[2];
+				}
 				vector<string> codexec2 = split(data, '=', 1);	// May be global a=const ...
 				parameter_check2(2, "set");
 				if (codexec2[0][0] == '$') {
@@ -3226,8 +3230,8 @@ int main(int argc, char* argv[]) {
 #if _DEBUG
 	// Warning: When testing VBWeb can't use it
 #if RAW_POST_TEST
-	string code = "", file = "index.bp";
-	target_path = "index_test.target.html";
+	string code = "", file = "test2.bp";
+	target_path = "test2.target.html";
 	in_debug = false;
 	no_lib = false;
 #else

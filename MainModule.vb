@@ -229,7 +229,7 @@ NotFoundError: MyScript = NotFoundPath
         Next
 NormalResolver: Dim MyExtension As String = GetExtension(MyScript)
         Dim DocKind As String = GetDocumentKind(MyExtension)
-
+        Dim MyScriptDir As String = My.Computer.FileSystem.GetParentPath(MyScript)  ' MyScript: selected
         Dim DirectoryToBluebetter As String = ""
         Dim ActiveExecuter As String = ""
         Dim ActiveCommander As String = ""
@@ -364,12 +364,12 @@ NormalResolver: Dim MyExtension As String = GetExtension(MyScript)
             ' ... Execute BlueBetter ...
             ' Previous work has been completed!
             ' Execute!
-            Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter & " --const:page_mode=0 " & IsDebug & ExternalOption, AppWinStyle.Hide, True)
+            Shell(DirectoryToBluebetter & "\BlueBetter4.exe " & ActiveExecuter & " --include-from:" & MyScriptDir & " --const:page_mode=0 " & IsDebug & ExternalOption, AppWinStyle.Hide, True)
             ' Write response ...
         ElseIf MyExtension = page_interpreter Then
             ' Supports UTF.
             UTFTarget = GenerateRandom(DirectoryToBluebetter)
-            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --const:page_mode=1 --const:SELF_POST=" & SelfPost & " --const:IS_POSTBACK=" & IsPostBack & " --const:UTF_TARGET=" & UTFTarget & " " & IsDebug & ExternalOption, AppWinStyle.Hide, True)
+            Shell(DirectoryToBluebetter & "\BluePage.exe " & ActiveExecuter & " --target:" & MySender & " --include-from:" & MyScriptDir & " --const:page_mode=1 --const:SELF_POST=" & SelfPost & " --const:IS_POSTBACK=" & IsPostBack & " --const:UTF_TARGET=" & UTFTarget & " " & IsDebug & ExternalOption, AppWinStyle.Hide, True)
         Else
             ' Send the whole file
             ' To modify encoding and apply to everywhere!
