@@ -2770,6 +2770,7 @@ intValue run(string code, varmap &myenv, string fname) {
 				});
 				thread_table[n].detach();
 				*/
+				myenv[codexec[0]] = intValue(n);
 				getValue(codexec3[1], myenv, false, n);
 
 			}
@@ -2899,6 +2900,10 @@ intValue preRun(vector<string> &codestream, varmap &myenv, map<string, intValue>
 	myenv.set_global("CLOCKS_PER_SEC", intValue(CLOCKS_PER_SEC), true);
 	myenv.set_global("true", intValue(1), true);
 	myenv.set_global("false", intValue(0), true);
+	myenv.set_global("thread_state.unknown", intValue(thread_status::unknown), true);
+	myenv.set_global("thread_state.not_exist", intValue(thread_status::not_exist), true);
+	myenv.set_global("thread_state.joinable", intValue(thread_status::joinable), true);
+	myenv.set_global("thread_state.not_joinable", intValue(thread_status::not_joinable), true);
 	// Replacable:
 	myenv.set_global("err.__type__", intValue("exception"));			// Error information
 	myenv.set_global("__error_handler__", intValue("call set_color,14\nprint \"On \"+err.source+\", Line \"+err.line+LF+err.description+LF+err.value+LF\ncall set_color,7"));	// Preset error handler
@@ -2910,6 +2915,10 @@ intValue preRun(vector<string> &codestream, varmap &myenv, map<string, intValue>
 	}
 #pragma endregion
 #pragma region Preset calls
+	intcalls["thread_yield"] = [](string args, varmap &env) -> intValue {
+		this_thread::yield();
+		return null;
+	};
 	intcalls["sleep"] = [](string args, varmap &env) -> intValue {
 		this_thread::sleep_for(chrono::milliseconds((long long)calculate(args, env).numeric));
 		return null;
@@ -3268,7 +3277,7 @@ int main(int argc, char* argv[]) {
 	in_debug = false;
 	no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 6.1\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.22\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
+	string version_info = string("BluePage Interpreter\nVersion 6.1a\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.23\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
 #pragma endregion
 	// End
 
