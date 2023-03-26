@@ -229,7 +229,15 @@ NotFoundError: MyScript = NotFoundPath
         Next
 NormalResolver: Dim MyExtension As String = GetExtension(MyScript)
         Dim DocKind As String = GetDocumentKind(MyExtension)
-        Dim MyScriptDir As String = My.Computer.FileSystem.GetParentPath(MyScript)  ' MyScript: selected
+        Dim MyScriptDir As String = ""
+        Try
+            MyScriptDir = My.Computer.FileSystem.GetParentPath(MyScript)  ' MyScript: selected
+        Catch ex As Exception
+
+        End Try
+        If Trim(MyScriptDir) = "" Then
+            MyScriptDir = pather
+        End If
         Dim DirectoryToBluebetter As String = ""
         Dim ActiveExecuter As String = ""
         Dim ActiveCommander As String = ""
