@@ -1157,10 +1157,14 @@ intValue getValue(string single_expr, varmap &vm, bool save_quote, int multithre
 }
 
 map<string, varmap::value_type> varmap::glob_vs;
-
-int priority(char op) {
+// Single ones must have the same as multi ones.
+// extras: Indicate if it work as extra operator (used in 'set', 'global' and maybe 'preset').
+int priority(char op, bool extras = false) {
 	switch (op) {
-	case ')': case ':':	// Must make sure ':' has the most priority
+	case ')':
+		if (extras) return -1;
+	case ':':	// PASSTHROUGH
+		// Must make sure ':' has the most priority
 		return 7;
 		break;
 	case '#':
@@ -1189,9 +1193,9 @@ int priority(char op) {
 	}
 }
 
-int priority(string op) {
+int priority(string op, bool extras = false) {
 	if (!op.length()) return -1;
-	return priority(op[0]);
+	return priority(op[0], extras);
 }
 
 intValue primary_calculate(intValue first, string op, intValue second, varmap &vm) {
@@ -1855,10 +1859,10 @@ intValue run(string code, varmap &myenv, string fname) {
 			}
 			char det;
 			// Only 2 layers' detect, reversely
-			if (czero.length() >= 2 && priority(det = czero[czero.length() - 1]) > 0) {
+			if (czero.length() >= 2 && priority(det = czero[czero.length() - 1], true) > 0) {
 				external_op = det;
 				czero.pop_back();
-				if (czero.length() >= 2 && priority(det = czero[czero.length() - 1]) > 0) {
+				if (czero.length() >= 2 && priority(det = czero[czero.length() - 1], true) > 0) {
 					external_op = det + external_op;
 					czero.pop_back();
 				}
@@ -2241,10 +2245,10 @@ intValue run(string code, varmap &myenv, string fname) {
 			char det;
 			string external_op = "", &czero = codexec2[0];
 			// Only 2 layers' detect, reversely
-			if (czero.length() >= 2 && priority(det = czero[czero.length() - 1]) > 0) {
+			if (czero.length() >= 2 && priority(det = czero[czero.length() - 1], true) > 0) {
 				external_op = det;
 				czero.pop_back();
-				if (czero.length() >= 2 && priority(det = czero[czero.length() - 1]) > 0) {
+				if (czero.length() >= 2 && priority(det = czero[czero.length() - 1], true) > 0) {
 					external_op = det + external_op;
 					czero.pop_back();
 				}
@@ -3191,10 +3195,10 @@ intValue preRun(vector<string> &codestream, varmap &myenv, map<string, intValue>
 					char det;
 					string external_op = "", &czero = codexec2[0];
 					// Only 2 layers' detect, reversely
-					if (czero.length() >= 2 && priority(det = czero[czero.length() - 1]) > 0) {
+					if (czero.length() >= 2 && priority(det = czero[czero.length() - 1], true) > 0) {
 						external_op = det;
 						czero.pop_back();
-						if (czero.length() >= 2 && priority(det = czero[czero.length() - 1]) > 0) {
+						if (czero.length() >= 2 && priority(det = czero[czero.length() - 1], true) > 0) {
 							external_op = det + external_op;
 							czero.pop_back();
 						}
