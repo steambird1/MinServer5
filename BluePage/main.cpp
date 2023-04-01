@@ -3056,6 +3056,12 @@ intValue preRun(vector<string> &codestream, varmap &myenv, map<string, intValue>
 						}
 					}
 				}
+				else if (codexec[0] == "prerun") {
+					parameter_check(2);
+					string inst = codexec[1];
+					if (codexec.size() >= 3) inst = inst + ' ' + codexec[2];
+					calculate(inst, myenv);
+				}
 				else if (codexec[0] == "error_handler:") {
 					fun_indent = 1;
 					cfname = "__error_handler__";
