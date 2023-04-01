@@ -2887,6 +2887,7 @@ intValue preRun(string code, varmap &myenv, map<string, intValue> required_globa
 		intValue res = run(code, myenv, "Main function");
 		return res;
 	}
+	return null;
 }
 
 // This 'myenv' must be pushed
