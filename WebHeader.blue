@@ -67,8 +67,7 @@ class sender:
 	function writebin binary:
 		if page_mode=1:
 			raise "Cannot use sender.writebin"
-		set binary_o=object binary
-		run sender.stream.write_binary binary_o
+		run sender.stream.write_binary binary
 	function write_header server_version response_code response_text:
 		if not boolean sender.contentin:
 			if page_mode=1:
@@ -192,9 +191,9 @@ class postback:
 		debugger
 		if receiver.ispost:
 			raise "Incorrect postback form"
-		set s=object receiver.content.open
+		set s=receiver.content.open
 		set res=s.read_to_end
-		set postback.data=object res
+		set postback.data=res
 		s.close
 		$postback.data.field
 
