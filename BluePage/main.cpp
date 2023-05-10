@@ -52,15 +52,15 @@ int main(int argc, char* argv[]) {
 #if _DEBUG
 	// Warning: When testing VBWeb can't use it
 #if RAW_POST_TEST
-	string code = "", file = "test2.bp";
-	target_path = "test2.target.html";
-	in_debug = false;
-	no_lib = false;
+	string code = "", file = "test3.bp";
+	target_path = "test3.target.html";
+	nenv.in_debug = false;
+	nenv.no_lib = false;
 #else
 	string code = "", file = "";
 	target_path = "";
-	in_debug = false;
-	no_lib = false;
+	nenv.in_debug = false;
+	nenv.no_lib = false;
 #endif
 
 	if (code.length()) {

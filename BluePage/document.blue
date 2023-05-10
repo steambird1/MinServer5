@@ -1,4 +1,4 @@
-﻿class element_style:
+class element_style:
 	shared maker
 	init:
 		set this.data=new dict
