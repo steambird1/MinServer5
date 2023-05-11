@@ -1386,7 +1386,7 @@ else if_have_additional_op('<') {
 					raise_ce(string("Cannot set a value of constant: ") + codexec2[0]);
 					goto add_exp;
 				}
-				auto &intv = myenv[codexec2[0]];
+#define intv myenv[codexec2[0]]
 				if (intv.isNull) {
 					intv.set_str("");
 				}
@@ -1412,6 +1412,7 @@ else if_have_additional_op('<') {
 				// Can we?
 				myenv[codexec2[0]].str.insert(pos, cres);
 				//intv.str[pos] = calculate(codexec2_origin[1], myenv).str[0];
+#undef intv
 			}
 			else if (codexec[0] == "global") {
 				bool constant = false;
@@ -1681,7 +1682,8 @@ else if_have_additional_op('<') {
 					current = intValue(myenv[codexec2[0]].numeric + stepper.numeric);
 				}
 				myenv[codexec2[0]] = current;
-				if (myenv[codexec2[0]].numeric == calculate(rangeobj[1], myenv).numeric) {
+				auto ending = calculate(rangeobj[1], myenv).numeric;
+				if (myenv[codexec2[0]].numeric == ending) {
 					// Jump where end-of-loop
 					myenv.tree_clean(codexec2[0]);
 					noroll = true; //  End of statements' life
@@ -2283,23 +2285,27 @@ else if_have_additional_op('<') {
 		//bool bmain_fail = false;
 		vector<string> codestream;
 		// Initalize libraries right here
-		FILE *f = fopen("bmain.blue", "r");
-		if (f != NULL) {
-			while (!feof(f)) {
-				fgets(buf1, 65536, f);
-				codestream.push_back(buf1);
+		if ((!no_lib) && (!loaded_lib)) {
+			loaded_lib = true;
+			FILE *f = fopen("bmain.blue", "r");
+			if (f != NULL) {
+				while (!feof(f)) {
+					fgets(buf1, 65536, f);
+					codestream.push_back(buf1);
+				}
+				fclose(f);
 			}
-			fclose(f);
+			else {
+				size_t execptr = 0;	// For ce-raising
+				raise_ce("You don't have bmain.blue, which is required! To prevent this, copy bmain.blue under program directory or use --no-lib.");
+			}
 		}
-		else if (!no_lib) {
-			size_t execptr = 0;	// For ce-raising
-			raise_ce("You don't have bmain.blue, which is required! To prevent this, copy bmain.blue under program directory or use --no-lib.");
-		}
+		
 
 		// End
 
 		vector<string> sc = split(code, '\n', -1, '\"', '\\', true);
-		codestream.insert(codestream.end() - 1, sc.begin(), sc.end());
+		codestream.insert(codestream.end(), sc.begin(), sc.end());
 		string curclass = "";					// Will append '.'
 		string curfun = "", cfname = "", cfargs = "";
 		int fun_indent = max_indent;
@@ -2580,6 +2586,7 @@ else if_have_additional_op('<') {
 
 	bool in_debug = false;	// Runner debug option.
 	bool no_lib = false;
+	bool loaded_lib = false;
 	vector<string> include_sources;
 	map<string, bcaller> intcalls;
 	varmap myenv;

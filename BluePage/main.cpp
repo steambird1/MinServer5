@@ -33,7 +33,7 @@ bool using_utf = false;	// Which means put content into another file
 
 // Set it to 0 when ready
 #define RAW_POST_TEST 0
-#define ECHO_TEST 1
+#define ECHO_TEST 0
 
 void generateGlobalClass(string variable, string classname, varmap &myenv) {
 	myenv.set_global(variable, null);
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
 #if RAW_POST_TEST
 	string code = "", file = "test3.bp";
 	target_path = "test3.target.html";
-	nenv.in_debug = false;
+	nenv.in_debug = true;
 	nenv.no_lib = false;
 #else
 	string code = "", file = "";
@@ -103,9 +103,13 @@ int main(int argc, char* argv[]) {
 
 #if RAW_POST_TEST
 	// For postback testers:
-	reqs["IS_POSTBACK"] = intValue(0);
-	reqs["SELF_POST"] = intValue("/");
+	reqs["IS_POSTBACK"] = intValue(1);
+	reqs["SELF_POST"] = intValue("/test3.bp");
 	reqs["page_mode"] = intValue(1);
+	reqs["keeper.commander"] = intValue("command_test_output.txt");
+	reqs["postback.data.document.utype.value"] = intValue("a*b*c");
+	reqs["postback.data.field"] = intValue("test_onclick");
+	utf_target = "utf_test_output.html";
 	// End.
 #endif
 
@@ -265,7 +269,7 @@ int main(int argc, char* argv[]) {
 	};
 
 	// Initalize libraries right here
-	lib_reader("bmain.blue");	// It should be read at first!
+	//lib_reader("bmain.blue");	// There's no need
 	lib_reader("document.blue");
 	lib_reader("BluePage.blue");
 	lib_reader("WebHeader.blue");

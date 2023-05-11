@@ -18,7 +18,7 @@ Module MainModule
     Public Const page_interpreter As String = ".bp"
     Public keepedata As Dictionary(Of String, String) = New Dictionary(Of String, String)
     Public ConvertableFiles As HashSet(Of String) = New HashSet(Of String)
-    Public IsDebug As String = "--debug"                       ' If do so, here will be --debug
+    Public IsDebug As String = ""                       ' If do so, here will be --debug
     Public Port As Integer = 80                             ' Default port
     Public AlwaysRunConverts As Boolean = False
     Public Const PostBackEntry As String = "MinServerPostBack"

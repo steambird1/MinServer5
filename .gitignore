@@ -274,3 +274,6 @@ __pycache__/
 /BluePage/test2.bp
 /BluePage/test2.target.html
 /BluePage/test3.bp
+/BluePage/command_test_output.txt
+/BluePage/test3.target.html
+/BluePage/utf_test_output.html
