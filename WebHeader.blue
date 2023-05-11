@@ -193,7 +193,7 @@ class postback:
 			raise "Incorrect postback form"
 		set s=receiver.content.open
 		set res=s.read_to_end
-		set postback.data=res
+		set postback.data=object res
 		s.close
 		$postback.data.field
 

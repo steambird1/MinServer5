@@ -33,6 +33,7 @@ bool using_utf = false;	// Which means put content into another file
 
 // Set it to 0 when ready
 #define RAW_POST_TEST 0
+#define ECHO_TEST 1
 
 void generateGlobalClass(string variable, string classname, varmap &myenv) {
 	myenv.set_global(variable, null);
@@ -204,12 +205,22 @@ int main(int argc, char* argv[]) {
 
 	interpreter::bcaller initial_echo = interpreter::bcaller([](string exp, varmap &env, interpreter &interp) -> intValue {
 		intValue output = interp.calculate(exp, env);
+#if ECHO_TEST
+		specialout();
+		cout << "initially echo: \"" << output.str << "\"\n";
+		endout();
+#endif
 		header += output.str;
 		return null;
 	});
 
 	interpreter::bcaller normal_echo = interpreter::bcaller([](string exp, varmap &env, interpreter &interp) -> intValue {
 		intValue output = interp.calculate(exp, env);
+#if ECHO_TEST
+		specialout();
+		cout << "normally echo: \"" << output.str << "\"\n";
+		endout();
+#endif
 		content += output.str;
 		return null;
 	});
@@ -258,6 +269,12 @@ int main(int argc, char* argv[]) {
 	lib_reader("document.blue");
 	lib_reader("BluePage.blue");
 	lib_reader("WebHeader.blue");
+
+#if ECHO_TEST
+	curlout();
+	cout << codestream << endl;
+	endout();
+#endif
 
 	// Put document as a new object ... (SHOULD BE GLOBAL ?!)
 	//generateClass("document", "object", keep_env, false);
@@ -440,7 +457,7 @@ int main(int argc, char* argv[]) {
 				content += "<script>\n";
 
 				// Add object-liked string for 'onpostback'.
-				string onloadcall = "window.onload = function() {\n", onpostback = "function mins_postback(info,para) {\n	var sending = \"__object$\\n.__type__=object\\n\";\n";
+				string onloadcall = "window.onload = function() {\n", onpostback = "function mins_postback(info,para) {\n	var sending = \"__object$\\n.__type__=\\\"object\\\"\\n\";\n";
 
 				// Write JavaScript into content
 				for (size_t i = 0; i < exprs.size(); i++) {
