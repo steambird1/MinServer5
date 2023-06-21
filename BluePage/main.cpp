@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
 	nenv.in_debug = false;
 	nenv.no_lib = false;
 #endif
-	string version_info = string("BluePage Interpreter\nVersion 6.2a\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.26\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
+	string version_info = string("BluePage Interpreter\nVersion 6.2b\nIncludes:\n\nBlueBetter Interpreter\nVersion 1.27\nCompiled on ") + __DATE__ + " " + __TIME__ + "\nBluePage is an internal application which is used to support the access of .bp (BluePage file) and postback.";
 #pragma endregion
 	// End
 
