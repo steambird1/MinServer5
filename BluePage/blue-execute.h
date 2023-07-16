@@ -530,6 +530,10 @@ public:
 					argname = split(args, ' ');
 				}
 				if (args.length()) {
+					if (spl.size() < 2) {
+						raise_gv_ce(string("Warning: Parameter dismatches or function does not exist while calling function ") + spl[0]);
+						return null;
+					}
 					arg = parameterSplit(spl[1]);
 					if (!array_arg.length()) {
 						if (arg.size() != argname.size()) {
@@ -1275,7 +1279,7 @@ else if_have_additional_op('<') {
 					myenv[codexec2[0]] = myenv.traditional_serial(codexec3[1]);
 				}
 				else if (codexec2[1] == "clear" || codexec2[1] == "null") {
-					if (!preserve) myenv.tree_clean(codexec2[0], false);
+					if (!preserve) myenv.tree_clean(codexec2[0], false);	// This will clear everything, so no reserver
 				}
 				else if (beginWith(codexec2[1], "referof ")) {
 					vector<string> codexec3 = split(codexec2[1], ' ', 1);
@@ -1502,16 +1506,16 @@ else if_have_additional_op('<') {
 						if (external_op.length()) {
 							raise_ce("Warning: using operators like +=, -=, *= for object is meaningless");
 						}
-						if (!preserve) myenv.tree_clean(codexec2[0]);
+						if (!preserve) myenv.tree_clean(codexec2[0], true, true);
 						myenv.deserial(codexec2[0], res.serial_data);
 					}
 					else if (external_op.length()) {
 						intValue tmp = primary_calculate(myenv[codexec2[0]], external_op, res, myenv);
-						if (!preserve) myenv.tree_clean(codexec2[0]);
+						if (!preserve) myenv.tree_clean(codexec2[0], true, true);
 						myenv[codexec2[0]] = tmp;
 					}
 					else {
-						if (!preserve) myenv.tree_clean(codexec2[0]);
+						if (!preserve) myenv.tree_clean(codexec2[0], true, true);
 						myenv[codexec2[0]] = res;
 					}
 				}
@@ -2376,7 +2380,7 @@ else if_have_additional_op('<') {
 			}
 			if (codexec.size() >= 4) proh_rec = calculate(codexec[3], env).numeric;
 			auto cpre = codexec[0] + '.';
-			auto result = yieldDirectory(calculate(codexec[1], env).str, calculate(codexec[2], env).str, cpre);
+			auto result = yieldDirectory(calculate(codexec[1], env).str, calculate(codexec[2], env).str, cpre, proh_rec);
 			env.insert(result.mdata.begin(), result.mdata.end());
 			size_t counter = 0;
 			for (auto &i : result.files) {
@@ -2483,6 +2487,7 @@ else if_have_additional_op('<') {
 		math_extension(acos);
 		math_extension(atan);
 		math_extension(sqrt);
+		math_extension(log);
 		system_caller("mkdir", makeDirectory);
 		system_caller("md", makeDirectory);
 		system_caller("rmdir", removeDirectory);
