@@ -28,10 +28,16 @@ Module MainModule
     Private Sub InitalizeContents()
         contents.Add(".html", "text/html")
         contents.Add(".blue", "text/html")
+        contents.Add(".bp", "text/html")
         contents.Add(".txt", "text/plain")
         contents.Add(".jpg", "image/jpeg")
+        contents.Add(".wav", "audio/wav")
+        contents.Add(".gif", "image/gif")
         contents.Add(".png", "image/png")
         contents.Add(".htm", "text/html")
+        contents.Add(".css", "text/css")
+        contents.Add(".js", "text/javascript")
+        contents.Add(".pdf", "application/pdf")
         ConvertableFiles.Add(".html")
         ConvertableFiles.Add(".htm")
     End Sub
@@ -57,7 +63,7 @@ Module MainModule
                 Console.Out.WriteLine()
                 Console.Out.Write("With BlueBetter and BluePage interpreter")
                 Console.Out.WriteLine()
-                Console.Out.Write("Version 1.14")
+                Console.Out.Write("Version 1.14a")
                 Console.Out.WriteLine()
                 End
             ElseIf SplResult(0) = "--port" Then
