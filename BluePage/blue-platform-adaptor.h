@@ -38,7 +38,11 @@ typedef intValue(*blue_dcaller)(varmap*);
 #define BACKGROUND_INTENSITY 0x80
 #endif
 
+#ifdef _WIN32
 DWORD precolor = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN, nowcolor = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN;
+#else
+DWORD precolor = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_INTENSITY, nowcolor = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_GREEN | FOREGROUND_INTENSITY;
+#endif
 
 enum environ_type {
 	windows,
@@ -114,7 +118,12 @@ void setColor(int color) {
 	back_result += color_mapping[back >> 4];
 
 	//SetConsoleTextAttribute(stdouth, color);
-	printf("\033[%dm\033[%dm", fore_result, back_result);
+	if (back_result == 40) {
+		printf("\033[%dm", fore_result);
+	}
+	else {
+		printf("\033[%dm\033[%dm", fore_result, back_result);
+	}
 	precolor = nowcolor;
 	nowcolor = color;
 }
